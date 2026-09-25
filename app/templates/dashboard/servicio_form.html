@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block title %}{% if modo == "nuevo" %}Publicar servicio{% else %}Editar servicio{% endif %} — TRABAJITOS{% endblock %}
+
+{% block content %}
+<section class="seccion auth">
+    <div class="contenedor auth__contenedor">
+        <div class="auth__card auth__card--ancha">
+            <h1 class="auth__titulo">
+                {% if modo == "nuevo" %}Publicá un servicio{% else %}Editá tu servicio{% endif %}
+            </h1>
+            <p class="auth__subtitulo">
+                Contales a los clientes qué hacés, cuánto cobrás y cuándo estás disponible.
+            </p>
+
+            <form method="post" novalidate class="auth__form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                <div class="campo">
+                    <label for="titulo">Título</label>
+                    <input type="text" id="titulo" name="titulo" value="{{ titulo }}" required
+                        maxlength="120" placeholder="Ej: Limpieza profunda de casas">
+                </div>
+
+                <div class="campo">
+                    <label for="descripcion">Descripción</label>
+                    <textarea id="descripcion" name="descripcion" rows="3" required>{{ descripcion }}</textarea>
+                </div>
+
+                <div class="campo-grupo">
+                    <div class="campo">
+                        <label for="categoria_id">Categoría</label>
+                        <select id="categoria_id" name="categoria_id" required>
+                            <option value="" disabled {% if not categoria_id %}selected{% endif %}>Elegí una categoría</option>
+                            {% for categoria in categorias %}
+                            <option value="{{ categoria.id }}" {% if categoria_id == categoria.id|string %}selected{% endif %}>
+                                {{ categoria.nombre }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="campo">
+                        <label for="modalidad">Modalidad</label>
+                        <select id="modalidad" name="modalidad" required>
+                            <option value="" disabled {% if not modalidad %}selected{% endif %}>Elegí una modalidad</option>
+                            <option value="hora" {% if modalidad == "hora" %}selected{% endif %}>Por hora</option>
+                            <option value="dia" {% if modalidad == "dia" %}selected{% endif %}>Por día</option>
+                            <option value="tarea" {% if modalidad == "tarea" %}selected{% endif %}>Por tarea</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="campo-grupo">
+                    <div class="campo">
+                        <label for="precio">Precio referencial (USD)</label>
+                        <input type="number" id="precio" name="precio" value="{{ precio_raw }}"
+                            min="0.01" max="999999.99" step="0.01" required>
+                        <p class="campo__ayuda">Es un valor aproximado; el acuerdo final se conversa por WhatsApp.</p>
+                    </div>
+
+                    <div class="campo">
+                        <label for="disponibilidad">Disponibilidad</label>
+                        <input type="text" id="disponibilidad" name="disponibilidad" value="{{ disponibilidad }}"
+                            placeholder="Lunes a viernes, tardes" maxlength="160" required>
+                    </div>
+                </div>
+
+                <button type="submit" class="boton boton--acento auth__submit">
+                    {% if modo == "nuevo" %}Publicar servicio{% else %}Guardar cambios{% endif %}
+                </button>
+            </form>
+
+            <p class="auth__alterna"><a href="{{ url_for('dashboard.index') }}">Volver al panel</a></p>
+        </div>
+    </div>
+</section>
+{% endblock %}

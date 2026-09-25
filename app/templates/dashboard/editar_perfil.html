@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+
+{% block title %}Editar perfil — TRABAJITOS{% endblock %}
+
+{% block content %}
+<section class="seccion auth">
+    <div class="contenedor auth__contenedor">
+        <div class="auth__card">
+            <h1 class="auth__titulo">Tu perfil</h1>
+            <p class="auth__subtitulo">Esto es lo que ven los clientes antes de contactarte.</p>
+
+            {# enctype="multipart/form-data" es obligatorio para que el navegador
+               mande el archivo de la foto junto con el resto del formulario. #}
+            <form method="post" novalidate class="auth__form" enctype="multipart/form-data">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                <div class="campo campo-foto">
+                    <label for="foto">Foto de perfil</label>
+
+                    <div class="foto-preview" id="foto-preview">
+                        <img id="foto-preview-img" src="{{ foto_url_actual or '' }}" alt="" {% if not foto_url_actual %}hidden{% endif %}>
+                        <span id="foto-preview-inicial" {% if foto_url_actual %}hidden{% endif %}>
+                            {{ current_user.nombre[0] }}
+                        </span>
+                    </div>
+
+                    <input type="file" id="foto" name="foto" accept="image/jpeg,image/png,image/webp">
+                    <p class="campo__ayuda">JPG, PNG o WEBP. Máximo 5 MB.</p>
+
+                    {% if perfil.foto_filename and perfil.foto_moderation_status in ("flagged", "rejected") %}
+                    <p class="campo__aviso">
+                        Tu foto actual está {{ "en revisión" if perfil.foto_moderation_status == "flagged" else "rechazada" }}
+                        y todavía no se muestra públicamente.
+                        {% if perfil.foto_moderation_reason %}{{ perfil.foto_moderation_reason }}{% endif %}
+                    </p>
+                    {% endif %}
+
+                    <details class="acordeon">
+                        <summary>Consejos para tu foto</summary>
+                        <div class="acordeon__contenido">
+                            <p><strong>Para que los clientes puedan reconocerte:</strong></p>
+                            <ul>
+                                <li>Mostrá claramente tu rostro, con buena iluminación.</li>
+                                <li>De frente o ligeramente de lado, desde los hombros hacia arriba.</li>
+                                <li>Usá un fondo sencillo. Solo vos deberías aparecer en la foto.</li>
+                            </ul>
+                            <p><strong>Evitá:</strong></p>
+                            <ul>
+                                <li>Fotos de grupo, rostro cubierto o lentes oscuros.</li>
+                                <li>Filtros o edición exagerada.</li>
+                                <li>Dibujos, avatares, logos o capturas de pantalla en vez de una foto tuya.</li>
+                                <li>Fotos tomadas de internet o contenido inapropiado.</li>
+                            </ul>
+                        </div>
+                    </details>
+                </div>
+
+                <div class="campo">
+                    <label for="descripcion">Descripción</label>
+                    <textarea id="descripcion" name="descripcion" rows="4" required>{{ descripcion }}</textarea>
+                </div>
+
+                <div class="campo">
+                    <label for="telefono_whatsapp">WhatsApp (opcional)</label>
+                    <input type="tel" id="telefono_whatsapp" name="telefono_whatsapp"
+                        value="{{ telefono_whatsapp }}" placeholder="+503 7000 0000" maxlength="20">
+                    <p class="campo__ayuda">Los clientes te van a contactar por acá.</p>
+                </div>
+
+                <button type="submit" class="boton boton--acento auth__submit">Guardar</button>
+            </form>
+
+            <p class="auth__alterna">
+                <a href="{{ url_for('dashboard.index') }}">Volver al panel</a> ·
+                <a href="{{ url_for('dashboard.portafolio') }}">Administrar mi portafolio</a>
+            </p>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Preview inmediato de la foto elegida, antes de guardar. Mismo recorte
+    // (circular, object-fit: cover) que tendrá el avatar definitivo.
+    document.getElementById("foto").addEventListener("change", function (evento) {
+        const archivo = evento.target.files[0];
+        const img = document.getElementById("foto-preview-img");
+        const inicial = document.getElementById("foto-preview-inicial");
+        if (!archivo) return;
+
+        const lector = new FileReader();
+        lector.onload = function (e) {
+            img.src = e.target.result;
+            img.hidden = false;
+            inicial.hidden = true;
+        };
+        lector.readAsDataURL(archivo);
+    });
+</script>
+{% endblock %}

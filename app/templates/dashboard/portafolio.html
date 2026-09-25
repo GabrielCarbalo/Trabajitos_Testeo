@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+
+{% block title %}Mi portafolio — TRABAJITOS{% endblock %}
+
+{% block content %}
+<section class="seccion panel">
+    <div class="contenedor">
+        <div class="panel__cabecera">
+            <div>
+                <h1 class="seccion__titulo">Trabajos realizados</h1>
+                <p class="seccion__subtitulo">
+                    Mostrá evidencia de tu experiencia. Necesitás al menos {{ minimo }} fotos aprobadas
+                    para poder publicar servicios nuevos ({{ fotos|length }}/{{ maximo }} subidas).
+                </p>
+            </div>
+        </div>
+
+        {# ============ SUBIR NUEVA FOTO ============ #}
+        <div class="auth__card auth__card--ancha portafolio__subir">
+            <h2 class="panel__subtitulo panel__subtitulo--sin-margen">Agregar un trabajo</h2>
+
+            <form method="post" action="{{ url_for('dashboard.subir_foto_portafolio') }}" enctype="multipart/form-data" class="auth__form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                <div class="campo">
+                    <label for="foto-portafolio">Fotografía</label>
+                    <input type="file" id="foto-portafolio" name="foto" accept="image/jpeg,image/png,image/webp" required>
+                    <p class="campo__ayuda">JPG, PNG o WEBP. Máximo 5 MB.</p>
+                </div>
+
+                <div class="campo">
+                    <label for="descripcion-portafolio">Descripción (opcional)</label>
+                    <input type="text" id="descripcion-portafolio" name="descripcion" maxlength="200"
+                        placeholder="Ej: Poda y limpieza de jardín — Santa Tecla">
+                </div>
+
+                <details class="acordeon">
+                    <summary>Consejos para mostrar tu trabajo</summary>
+                    <div class="acordeon__contenido">
+                        <p><strong>Sí recomendamos:</strong></p>
+                        <ul>
+                            <li>Fotos claras del resultado final, con buena iluminación.</li>
+                            <li>Antes y después, cuando tenga sentido.</li>
+                            <li>Herramientas o proceso, si ayuda a entender el servicio.</li>
+                            <li>Fotografías propias — y pedile autorización a otras personas si aparecen.</li>
+                            <li>Evitá información privada de tus clientes (direcciones exactas, documentos, etc.).</li>
+                        </ul>
+                        <p><strong>No está permitido subir:</strong></p>
+                        <ul>
+                            <li>Contenido sexual, desnudos o violencia gráfica.</li>
+                            <li>Fotografías que no sean tuyas (bajadas de internet, de otros portafolios).</li>
+                            <li>Imágenes generadas por IA presentadas como trabajos reales.</li>
+                        </ul>
+                    </div>
+                </details>
+
+                <button type="submit" class="boton boton--acento auth__submit">Subir foto</button>
+            </form>
+        </div>
+
+        {# ============ GALERÍA ACTUAL ============ #}
+        {% if fotos %}
+        <div class="portafolio__grid">
+            {% for foto in fotos %}
+            <article class="portafolio__item">
+                <img src="{{ portafolio_url(foto) }}" alt="{{ foto.descripcion or '' }}" class="portafolio__img">
+
+                {% set texto, clase = etiqueta_moderacion(foto.moderation_status) %}
+                <span class="badge-moderacion badge-moderacion--{{ clase }}">{{ texto }}</span>
+
+                {% if foto.moderation_reason %}
+                <p class="campo__ayuda">{{ foto.moderation_reason }}</p>
+                {% endif %}
+
+                <form method="post" action="{{ url_for('dashboard.actualizar_descripcion_portafolio', foto_id=foto.id) }}" class="portafolio__form-descripcion">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <label class="sr-only" for="descripcion-{{ foto.id }}">Descripción</label>
+                    <input type="text" id="descripcion-{{ foto.id }}" name="descripcion" maxlength="200"
+                        value="{{ foto.descripcion or '' }}" placeholder="Agregar descripción">
+                    <button type="submit" class="boton boton--secundario portafolio__boton-chico">Guardar</button>
+                </form>
+
+                <form method="post" action="{{ url_for('dashboard.eliminar_foto_portafolio', foto_id=foto.id) }}"
+                    onsubmit="return confirm('¿Eliminar esta foto de tu portafolio?');">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="portafolio__eliminar">Eliminar</button>
+                </form>
+            </article>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="aviso-vacio portafolio__vacio">
+            <p><strong>Mostrá lo que sabés hacer</strong></p>
+            <p>Subí fotografías de trabajos que hayas realizado para que los clientes puedan conocer mejor tu experiencia.</p>
+        </div>
+        {% endif %}
+
+        <p class="auth__alterna"><a href="{{ url_for('dashboard.index') }}">Volver al panel</a></p>
+    </div>
+</section>
+{% endblock %}

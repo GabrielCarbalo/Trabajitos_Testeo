@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+{# ============ HERO ============
+   Composición editorial: titular grande, texto breve y buscador principal.
+   El bloque visual de la derecha es un placeholder de color a propósito:
+   todavía no tenemos fotografías con derechos propios. Cuando existan,
+   reemplazar el div .hero__foto por una <img> real (ver README). #}
+<section class="hero patron-cultural patron-cultural--sobre-claro">
+    <div class="contenedor hero__inner">
+        <div class="hero__texto">
+            <h1 class="hero__titular">Encontrá a alguien<br>que te eche la mano.</h1>
+            <p class="hero__subtitulo">Servicios para hoy, unas horas o cuando los necesités.</p>
+
+            <form class="buscador" action="{{ url_for('main.explorar') }}" method="get" role="search">
+                <label for="busqueda" class="sr-only">¿Qué necesitás?</label>
+                <input type="search" id="busqueda" name="q" placeholder="¿Qué necesitás?" autocomplete="off">
+                <button type="submit" class="boton boton--acento">Buscar trabajitos</button>
+            </form>
+        </div>
+
+        <div class="hero__foto" aria-hidden="true">
+            <span class="hero__foto-nota">[ espacio para fotografía editorial ]</span>
+        </div>
+    </div>
+</section>
+
+{# ============ CATEGORÍAS ============
+   Inspirado en el carrusel horizontal "ARCHIVES" del moodboard: tira de
+   bloques navegables por categoría, con scroll horizontal en mobile. #}
+<section class="seccion categorias">
+    <div class="contenedor">
+        <h2 class="seccion__titulo">¿Qué necesitás hoy?</h2>
+        <p class="seccion__subtitulo">Explorá por categoría</p>
+    </div>
+
+    <div class="categorias__riel" role="region" tabindex="0" aria-label="Categorías de servicios, deslizá para ver más">
+        {% for categoria in categorias %}
+        <a href="{{ url_for('main.explorar', categoria=categoria.slug) }}" class="categoria-card categoria-card--{{ loop.index0 % 4 }}">
+            <span class="categoria-card__nombre">{{ categoria.nombre }}</span>
+        </a>
+        {% endfor %}
+    </div>
+</section>
+
+{# ============ SERVICIOS DESTACADOS ============ #}
+<section class="seccion servicios-destacados">
+    <div class="contenedor">
+        <h2 class="seccion__titulo">Trabajitos disponibles</h2>
+        <p class="seccion__subtitulo">Colaboradores listos para ayudarte con lo que necesités.</p>
+
+        {% if servicios %}
+        <div class="servicios-destacados__grid">
+            {% for servicio in servicios %}
+                {% include "partials/service_card.html" %}
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="aviso-vacio">
+            Todavía no hay servicios publicados. Sé el primero en
+            <a href="{{ url_for('auth.registro') }}">ofrecer tu talento</a>.
+        </p>
+        {% endif %}
+    </div>
+</section>
+
+{# ============ CTA COLABORADORES ============
+   Bloque editorial de alto contraste, separado visualmente del resto. #}
+<section class="cta-colaboradores patron-cultural patron-cultural--sobre-oscuro">
+    <div class="contenedor cta-colaboradores__inner">
+        <h2 class="cta-colaboradores__titular">¿Tenés un talento?<br>Hacélo trabajito.</h2>
+        <p class="cta-colaboradores__texto">
+            Publicá lo que sabés hacer, indicá tu precio y tu disponibilidad,
+            y dejá que las personas te encuentren.
+        </p>
+        {% if current_user.is_authenticated and current_user.es_colaborador %}
+        <a href="{{ url_for('dashboard.index') }}" class="boton boton--claro">Ir a mi panel</a>
+        {% else %}
+        <a href="{{ url_for('auth.registro') }}" class="boton boton--claro">Ofrecer mis servicios</a>
+        {% endif %}
+    </div>
+</section>
+
+{% endblock %}

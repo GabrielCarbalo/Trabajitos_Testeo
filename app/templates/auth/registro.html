@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block title %}Crear cuenta — TRABAJITOS{% endblock %}
+
+{% block content %}
+<section class="seccion auth">
+    <div class="contenedor auth__contenedor">
+        <div class="auth__card">
+            <h1 class="auth__titulo">Creá tu cuenta</h1>
+            <p class="auth__subtitulo">Elegí qué necesitás hacer en TRABAJITOS.</p>
+
+            <form method="post" novalidate class="auth__form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                {# Elección clara entre cliente y colaborador (sección 25 del brief). #}
+                <fieldset class="tipo-usuario">
+                    <legend class="sr-only">¿Qué querés hacer en TRABAJITOS?</legend>
+
+                    <label class="tipo-usuario__opcion">
+                        <input type="radio" name="tipo_usuario" value="cliente" required
+                            {% if tipo_usuario == "cliente" %}checked{% endif %}>
+                        <span class="tipo-usuario__card">
+                            <strong>Necesito contratar</strong>
+                            <span>Busco a alguien para un trabajito</span>
+                        </span>
+                    </label>
+
+                    <label class="tipo-usuario__opcion">
+                        <input type="radio" name="tipo_usuario" value="colaborador" required
+                            {% if tipo_usuario == "colaborador" %}checked{% endif %}>
+                        <span class="tipo-usuario__card">
+                            <strong>Quiero ofrecer servicios</strong>
+                            <span>Sé hacer algo y busco clientes</span>
+                        </span>
+                    </label>
+                </fieldset>
+
+                <div class="campo">
+                    <label for="nombre">Nombre completo</label>
+                    <input type="text" id="nombre" name="nombre" value="{{ nombre }}" required maxlength="120" autocomplete="name">
+                </div>
+
+                <div class="campo">
+                    <label for="correo">Correo electrónico</label>
+                    <input type="email" id="correo" name="correo" value="{{ correo }}" required maxlength="180" autocomplete="email">
+                </div>
+
+                <div class="campo">
+                    <label for="password">Contraseña</label>
+                    <input type="password" id="password" name="password" required minlength="8" autocomplete="new-password">
+                    <p class="campo__ayuda">Mínimo 8 caracteres.</p>
+                </div>
+
+                <button type="submit" class="boton boton--acento auth__submit">Crear cuenta</button>
+            </form>
+
+            <p class="auth__alterna">¿Ya tenés cuenta? <a href="{{ url_for('auth.login') }}">Iniciá sesión</a></p>
+        </div>
+    </div>
+</section>
+{% endblock %}
