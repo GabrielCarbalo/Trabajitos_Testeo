@@ -1,0 +1,29 @@
+# Entorno virtual de Python
+venv/
+env/
+.venv/
+
+# Variables de entorno con datos sensibles (SECRET_KEY, DATABASE_URL, etc.)
+.env
+
+# Base de datos local de desarrollo
+instance/*.db
+instance/*.sqlite3
+
+# Fotografías subidas por los usuarios (perfil y portafolio). Son datos de
+# cada instalación, no código fuente del proyecto — no se versionan.
+app/static/uploads/
+
+# Cache y bytecode de Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Archivos del editor / sistema operativo
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
