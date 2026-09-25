@@ -44,7 +44,16 @@ CAMPOS_SERVICIO = ("titulo", "descripcion", "categoria_id", "modalidad", "precio
 
 # Acepta un "+" inicial opcional y entre 8 y 20 dígitos/espacios: cubre
 # formatos como "+503 7123 4567" o "71234567" sin dejar pasar texto suelto.
-PATRON_TELEFONO = re.compile(r"^\+?[\d ]{8,20}$")
+# [0-9] y no \d: \d también acepta dígitos de otros alfabetos (ej. "٧"),
+# que wa.me no entiende. Además se exige un mínimo de dígitos reales (ver
+# _telefono_valido), porque el patrón solo no impide "1       2".
+PATRON_TELEFONO = re.compile(r"^\+?[0-9 ]{8,20}$")
+MINIMO_DIGITOS_TELEFONO = 8
+
+
+def _telefono_valido(telefono):
+    digitos = sum(caracter.isdigit() for caracter in telefono)
+    return bool(PATRON_TELEFONO.match(telefono)) and digitos >= MINIMO_DIGITOS_TELEFONO
 
 
 @dashboard_bp.before_request
@@ -145,7 +154,7 @@ def editar_perfil():
         errores = []
         if not descripcion:
             errores.append("Contá brevemente qué servicios ofrecés.")
-        if telefono and not PATRON_TELEFONO.match(telefono):
+        if telefono and not _telefono_valido(telefono):
             errores.append(
                 "El teléfono de WhatsApp tiene que tener entre 8 y 20 dígitos, "
                 "con un '+' inicial opcional (ej: +503 7123 4567)."
@@ -168,6 +177,11 @@ def editar_perfil():
                 errores.append(str(error))
 
         if errores:
+            # procesar_imagen_subida ya guardó la foto nueva en disco; si el
+            # resto del formulario no es válido, no se va a usar, así que se
+            # borra para no dejar archivos huérfanos en static/uploads/.
+            if resultado_foto is not None:
+                storage.eliminar(resultado_foto["filename"], SUBCARPETA_PERFIL)
             for error in errores:
                 flash(error, "error")
             return render_template(

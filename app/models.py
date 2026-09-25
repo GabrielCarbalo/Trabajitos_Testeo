@@ -528,8 +528,15 @@ class Service(db.Model):
             except ValueError as error:
                 errores.append(str(error))
 
+        # Solo dígitos ASCII y de largo acotado: isdigit() acepta cosas como
+        # "²" que int() no convierte, y un número enorme no entra en un
+        # INTEGER de la base — los dos casos terminaban en un error 500.
         categoria_id = str(datos.get("categoria_id") or "").strip()
-        categoria = db.session.get(Category, int(categoria_id)) if categoria_id.isdigit() else None
+        categoria = (
+            db.session.get(Category, int(categoria_id))
+            if re.fullmatch(r"[0-9]{1,9}", categoria_id)
+            else None
+        )
         if categoria is None:
             errores.append("Elegí una categoría." if not categoria_id else "La categoría elegida no es válida.")
         else:

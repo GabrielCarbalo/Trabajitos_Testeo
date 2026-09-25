@@ -9,6 +9,7 @@ de módulo) porque permite:
     (por ejemplo una para tests, otra para desarrollo).
 """
 
+import os
 from datetime import datetime, timezone
 
 from flask import Flask, render_template
@@ -16,8 +17,22 @@ from flask_login import LoginManager
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
 from flask_wtf import CSRFProtect
+from werkzeug.routing import IntegerConverter
 
 from app.config import Config
+
+
+class IdConverter(IntegerConverter):
+    """
+    Igual que el <int:...> de Flask, pero con un tope: el id más grande que
+    entra en un INTEGER de SQLite/PostgreSQL (64 bits). Sin esto, una URL
+    como /colaborador/99999999999999999999 llega hasta la consulta y rompe
+    con un error 500 (OverflowError) en vez de responder 404.
+    """
+
+    def __init__(self, url_map, *args, **kwargs):
+        kwargs.setdefault("max", 2**63 - 1)
+        super().__init__(url_map, *args, **kwargs)
 
 # Las extensiones se crean acá "vacías" y se conectan a la app en create_app().
 db = SQLAlchemy()
@@ -32,6 +47,15 @@ login_manager.login_message_category = "info"
 def create_app(config_class=Config):
     app = Flask(__name__, instance_relative_config=True)
     app.config.from_object(config_class)
+
+    # La base SQLite por defecto vive en instance/, pero SQLite no crea
+    # carpetas: si no existe, "flask db upgrade" falla con "unable to open
+    # database file" en una instalación nueva.
+    os.makedirs(app.instance_path, exist_ok=True)
+
+    # Tiene que registrarse ANTES que los blueprints: cada ruta toma su
+    # converter en el momento en que se agrega al mapa de URLs.
+    app.url_map.converters["int"] = IdConverter
 
     db.init_app(app)
     login_manager.init_app(app)

@@ -10,6 +10,8 @@ Dos grupos:
     usando el cliente de pruebas de Flask.
 """
 
+import io
+import os
 import unittest
 from decimal import Decimal
 
@@ -86,6 +88,13 @@ class PruebasModelo(BaseConApp):
         with self.assertRaises(ServicioInvalido):
             Service.validar_datos({**DATOS_VALIDOS, "categoria_id": "999"})
 
+    def test_categoria_con_formato_raro_se_rechaza_sin_romper(self):
+        # "²" pasa str.isdigit() pero int() no lo convierte, y un número enorme
+        # no entra en un INTEGER de SQLite: antes ambos terminaban en error 500.
+        for categoria_id in ("²", "٣", "9" * 25, "-1", "1.0"):
+            with self.subTest(categoria_id=categoria_id):
+                with self.assertRaises(ServicioInvalido):
+                    Service.validar_datos({**DATOS_VALIDOS, "categoria_id": categoria_id})
 
     def test_modalidad_y_longitudes(self):
         with self.assertRaises(ServicioInvalido):
@@ -205,6 +214,37 @@ class PruebasFlujoMVC(BaseConApp):
         self.assertEqual(respuesta.status_code, 403)
         db.session.refresh(servicio)
         self.assertEqual(servicio.titulo, "Pintura de interiores")
+
+    def test_ids_enormes_en_la_url_dan_404_y_no_error_500(self):
+        cliente = self.entrar_como("ana@prueba.test")
+        enorme = "9" * 25
+        self.assertEqual(cliente.get(f"/colaborador/{enorme}").status_code, 404)
+        self.assertEqual(cliente.get(f"/dashboard/servicios/{enorme}/editar").status_code, 404)
+        self.assertEqual(cliente.post(f"/dashboard/portafolio/{enorme}/eliminar").status_code, 404)
+
+    def test_telefono_con_pocos_digitos_se_rechaza(self):
+        cliente = self.entrar_como("ana@prueba.test")
+        for telefono in ("1       2", "+  1234  ", "٧١٢٣٤٥٦٧"):
+            with self.subTest(telefono=telefono):
+                respuesta = cliente.post("/dashboard/perfil", data={"descripcion": "Hola", "telefono_whatsapp": telefono})
+                self.assertEqual(respuesta.status_code, 400)
+        respuesta = cliente.post("/dashboard/perfil", data={"descripcion": "Hola", "telefono_whatsapp": "+503 7123 4567"})
+        self.assertEqual(respuesta.status_code, 302)
+        db.session.refresh(self.ana)
+        self.assertEqual(self.ana.telefono_whatsapp, "+503 7123 4567")
+
+    def test_foto_de_perfil_no_queda_huerfana_si_el_formulario_falla(self):
+        carpeta = os.path.join(self.app.static_folder, "uploads", "profile")
+        os.makedirs(carpeta, exist_ok=True)
+        antes = set(os.listdir(carpeta))
+        png = b"\x89PNG\r\n\x1a\n" + b"0" * 32
+        respuesta = self.entrar_como("ana@prueba.test").post(
+            "/dashboard/perfil",
+            data={"descripcion": "", "foto": (io.BytesIO(png), "foto.png")},
+            content_type="multipart/form-data",
+        )
+        self.assertEqual(respuesta.status_code, 400)
+        self.assertEqual(set(os.listdir(carpeta)), antes)
 
     def test_permisos_cliente_y_anonimo(self):
         self.assertEqual(self.entrar_como("cliente@prueba.test").get("/dashboard/servicios/nuevo").status_code, 403)
