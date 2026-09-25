@@ -19,6 +19,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Carga las variables definidas en el archivo .env, si existe.
 load_dotenv(BASE_DIR / ".env")
 
+# Valor de respaldo de SECRET_KEY. create_app() avisa en el log si se está
+# usando fuera de modo debug (ver app/__init__.py).
+CLAVE_DE_DESARROLLO = "clave-de-desarrollo-no-usar-en-produccion"
+
 
 class Config:
     """Configuración base compartida por todos los entornos."""
@@ -26,7 +30,7 @@ class Config:
     # Clave usada por Flask para firmar la sesión del usuario.
     # NUNCA debe quedar hardcodeada en un proyecto real; acá cae a un valor
     # de desarrollo solo si no se definió SECRET_KEY en el entorno.
-    SECRET_KEY = os.environ.get("SECRET_KEY", "clave-de-desarrollo-no-usar-en-produccion")
+    SECRET_KEY = os.environ.get("SECRET_KEY", CLAVE_DE_DESARROLLO)
 
     # SQLAlchemy arma la conexión a partir de DATABASE_URL.
     # Si no existe la variable, usamos SQLite dentro de instance/ como respaldo

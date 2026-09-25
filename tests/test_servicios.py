@@ -246,6 +246,55 @@ class PruebasFlujoMVC(BaseConApp):
         self.assertEqual(respuesta.status_code, 400)
         self.assertEqual(set(os.listdir(carpeta)), antes)
 
+    def test_sesion_abierta_de_cuenta_baneada_se_cierra_en_paginas_publicas(self):
+        cliente = self.entrar_como("ana@prueba.test")
+        self.ana.usuario.account_status = "banned"
+        db.session.commit()
+
+        html = cliente.get("/").get_data(as_text=True)
+        self.assertIn("Esta cuenta fue suspendida", html)
+        self.assertNotIn("Cerrar sesión", html)
+        g.pop("_login_user", None)
+        respuesta = cliente.get("/dashboard/")
+        self.assertEqual(respuesta.status_code, 302)
+        self.assertIn("/login", respuesta.headers["Location"])
+
+    def test_panel_cuenta_rechazadas_aparte_de_en_revision(self):
+        self.ana.portafolio.append(PortfolioImage(filename="r.png", hash_exacto="r", moderation_status="rejected"))
+        self.ana.portafolio.append(PortfolioImage(filename="p.png", hash_exacto="p", moderation_status="flagged"))
+        db.session.commit()
+        html = self.entrar_como("ana@prueba.test").get("/dashboard/").get_data(as_text=True)
+        self.assertIn("1 más en revisión", html)
+        self.assertIn("1 rechazada", html)
+
+    def test_cliente_no_ve_links_para_ofrecer_servicios(self):
+        html = self.entrar_como("cliente@prueba.test").get("/").get_data(as_text=True)
+        self.assertNotIn("Ofrecer servicios", html)
+        self.assertNotIn("Ofrecer mis servicios", html)
+        html_anonimo = self.cliente_anonimo().get("/").get_data(as_text=True)
+        self.assertIn("Ofrecer mis servicios", html_anonimo)
+
+    def test_cambiar_foto_de_perfil_borra_la_anterior(self):
+        carpeta = os.path.join(self.app.static_folder, "uploads", "profile")
+        cliente = self.entrar_como("ana@prueba.test")
+
+        def subir(relleno):
+            png = b"\x89PNG\r\n\x1a\n" + relleno * 32
+            respuesta = cliente.post(
+                "/dashboard/perfil",
+                data={"descripcion": "Hola", "foto": (io.BytesIO(png), "foto.png")},
+                content_type="multipart/form-data",
+            )
+            self.assertEqual(respuesta.status_code, 302)
+            db.session.refresh(self.ana)
+            return self.ana.foto_filename
+
+        primera = subir(b"1")
+        segunda = subir(b"2")
+        self.assertFalse(os.path.exists(os.path.join(carpeta, primera)))
+        self.assertTrue(os.path.exists(os.path.join(carpeta, segunda)))
+        os.remove(os.path.join(carpeta, segunda))
+
     def test_permisos_cliente_y_anonimo(self):
         self.assertEqual(self.entrar_como("cliente@prueba.test").get("/dashboard/servicios/nuevo").status_code, 403)
         # Estas pruebas mantienen un app_context abierto, y Flask lo reutiliza en

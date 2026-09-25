@@ -51,8 +51,11 @@
                 <p class="panel__perfil-dato">
                     {{ cantidad_portafolio_aprobado }} foto{{ "s" if cantidad_portafolio_aprobado != 1 else "" }} aprobada{{ "s" if cantidad_portafolio_aprobado != 1 else "" }}
                     (mínimo {{ minimo_portafolio }} para poder publicar servicios nuevos)
-                    {% if cantidad_portafolio != cantidad_portafolio_aprobado %}
-                    · {{ cantidad_portafolio - cantidad_portafolio_aprobado }} más en revisión
+                    {% if cantidad_portafolio_en_revision %}
+                    · {{ cantidad_portafolio_en_revision }} más en revisión
+                    {% endif %}
+                    {% if cantidad_portafolio_rechazado %}
+                    · {{ cantidad_portafolio_rechazado }} rechazada{{ "s" if cantidad_portafolio_rechazado != 1 else "" }}
                     {% endif %}
                 </p>
             </div>

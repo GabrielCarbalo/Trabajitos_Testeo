@@ -74,9 +74,11 @@
             Publicá lo que sabés hacer, indicá tu precio y tu disponibilidad,
             y dejá que las personas te encuentren.
         </p>
+        {# Con sesión de cliente, /registro solo redirige al inicio: en ese
+           caso no mostramos un botón que no lleva a ningún lado. #}
         {% if current_user.is_authenticated and current_user.es_colaborador %}
         <a href="{{ url_for('dashboard.index') }}" class="boton boton--claro">Ir a mi panel</a>
-        {% else %}
+        {% elif not current_user.is_authenticated %}
         <a href="{{ url_for('auth.registro') }}" class="boton boton--claro">Ofrecer mis servicios</a>
         {% endif %}
     </div>

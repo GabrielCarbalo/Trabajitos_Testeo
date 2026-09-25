@@ -11,7 +11,7 @@ cada ruta.
 import re
 
 from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
-from flask_login import current_user, login_required, logout_user
+from flask_login import current_user, login_required
 from sqlalchemy.orm import joinedload
 
 from app import db
@@ -66,14 +66,11 @@ def restringir_a_colaboradores():
     Si hay sesión pero es de tipo "cliente", o por algún motivo no tiene
     perfil de colaborador todavía, devolvemos 403.
 
-    Si la cuenta está baneada, la cerramos y devolvemos 403: en teoría el
-    login ya lo bloquea (ver app/routes/auth.py), pero si alguien ya tenía
-    una sesión abierta de antes de ser baneado, esto corta el acceso igual.
+    Las cuentas baneadas no llegan hasta acá: create_app() les cierra la
+    sesión antes de cualquier request (ver cerrar_sesion_de_cuentas_baneadas
+    en app/__init__.py), así que login_required las manda a /login.
     """
     if not current_user.es_colaborador or current_user.perfil_colaborador is None:
-        abort(403)
-    if current_user.esta_baneado:
-        logout_user()
         abort(403)
 
 
@@ -135,8 +132,13 @@ def index():
         perfil=perfil,
         servicios=servicios,
         foto_url_actual=storage.url(perfil.foto_filename, SUBCARPETA_PERFIL) if perfil.foto_filename else None,
-        cantidad_portafolio=perfil.portafolio.count(),
         cantidad_portafolio_aprobado=len(perfil.portafolio_aprobado),
+        # "pending" y "flagged" todavía pueden aprobarse; "rejected" no, así
+        # que se cuentan aparte en vez de mostrarlas como "en revisión".
+        cantidad_portafolio_en_revision=perfil.portafolio.filter(
+            PortfolioImage.moderation_status.in_(("pending", "flagged"))
+        ).count(),
+        cantidad_portafolio_rechazado=perfil.portafolio.filter_by(moderation_status="rejected").count(),
         minimo_portafolio=MINIMO_FOTOS_PORTAFOLIO_PARA_PUBLICAR,
     )
 
@@ -195,16 +197,20 @@ def editar_perfil():
         perfil.descripcion = descripcion
         perfil.telefono_whatsapp = telefono or None
 
+        foto_anterior = None
         if resultado_foto is not None:
             foto_anterior = perfil.foto_filename
             perfil.foto_filename = resultado_foto["filename"]
             perfil.foto_hash = resultado_foto["hash_exacto"]
             perfil.foto_moderation_status = resultado_foto["moderation_status"]
             perfil.foto_moderation_reason = resultado_foto["moderation_reason"]
-            if foto_anterior:
-                storage.eliminar(foto_anterior, SUBCARPETA_PERFIL)
 
         db.session.commit()
+
+        # La foto anterior se borra recién DESPUÉS del commit: si el commit
+        # fallara, el perfil seguiría apuntando a ella y no puede faltar.
+        if foto_anterior:
+            storage.eliminar(foto_anterior, SUBCARPETA_PERFIL)
 
         flash("Guardamos los cambios de tu perfil.", "success")
         return redirect(url_for("dashboard.index"))

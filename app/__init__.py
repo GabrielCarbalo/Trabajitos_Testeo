@@ -12,14 +12,14 @@ de módulo) porque permite:
 import os
 from datetime import datetime, timezone
 
-from flask import Flask, render_template
-from flask_login import LoginManager
+from flask import Flask, flash, render_template
+from flask_login import LoginManager, current_user, logout_user
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
 from flask_wtf import CSRFProtect
 from werkzeug.routing import IntegerConverter
 
-from app.config import Config
+from app.config import CLAVE_DE_DESARROLLO, Config
 
 
 class IdConverter(IntegerConverter):
@@ -47,6 +47,12 @@ login_manager.login_message_category = "info"
 def create_app(config_class=Config):
     app = Flask(__name__, instance_relative_config=True)
     app.config.from_object(config_class)
+
+    if app.config["SECRET_KEY"] == CLAVE_DE_DESARROLLO and not (app.debug or app.testing):
+        app.logger.warning(
+            "SECRET_KEY no está definida: se está usando la clave de desarrollo. "
+            "Definí una propia en .env antes de publicar la aplicación."
+        )
 
     # La base SQLite por defecto vive en instance/, pero SQLite no crea
     # carpetas: si no existe, "flask db upgrade" falla con "unable to open
@@ -83,6 +89,18 @@ def create_app(config_class=Config):
     app.register_blueprint(main_bp)
     app.register_blueprint(auth_bp)
     app.register_blueprint(dashboard_bp)
+
+    @app.before_request
+    def cerrar_sesion_de_cuentas_baneadas():
+        """
+        El login ya bloquea a las cuentas baneadas (ver app/routes/auth.py),
+        pero alguien que tenía la sesión abierta desde ANTES del baneo seguía
+        navegando como si nada en las páginas públicas. Esto corta esa
+        sesión en cualquier página, no solo en el panel.
+        """
+        if current_user.is_authenticated and current_user.esta_baneado:
+            logout_user()
+            flash("Esta cuenta fue suspendida por incumplir las normas de la plataforma.", "error")
 
     @app.context_processor
     def inyectar_anio_actual():
