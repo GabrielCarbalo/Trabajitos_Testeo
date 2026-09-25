@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}TRABAJITOS — Encontrá a alguien que te eche la mano{% endblock %}</title>
+    <meta name="description" content="TRABAJITOS conecta a personas que necesitan un servicio puntual con colaboradores que saben hacerlo, en El Salvador.">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <a class="salto-contenido" href="#contenido-principal">Saltar al contenido principal</a>
+
+    {% include "partials/header.html" %}
+
+    <main id="contenido-principal">
+        {# Mensajes flash: errores de formulario, confirmaciones de login/registro, etc. #}
+        {% with mensajes = get_flashed_messages(with_categories=true) %}
+            {% if mensajes %}
+            <div class="flashes contenedor" role="status">
+                {% for categoria, mensaje in mensajes %}
+                <p class="flash flash--{{ categoria }}">{{ mensaje }}</p>
+                {% endfor %}
+            </div>
+            {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+    </main>
+
+    {% include "partials/footer.html" %}
+
+    <script src="{{ url_for('static', filename='js/main.js') }}" defer></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

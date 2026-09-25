@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+
+{% block title %}Mi panel — TRABAJITOS{% endblock %}
+
+{% block content %}
+<section class="seccion panel">
+    <div class="contenedor">
+        <div class="panel__cabecera">
+            <div class="panel__identidad">
+                <div class="avatar avatar--md">
+                    {% if foto_url_actual %}
+                    <img src="{{ foto_url_actual }}" alt="" class="avatar__img">
+                    {% else %}
+                    <span class="avatar__inicial">{{ current_user.nombre[0] }}</span>
+                    {% endif %}
+                </div>
+                <div>
+                    <h1 class="seccion__titulo">Hola, {{ current_user.nombre.split(" ")[0] }}</h1>
+                    <p class="seccion__subtitulo">Este es tu panel de colaborador.</p>
+                </div>
+            </div>
+            <a href="{{ url_for('dashboard.nuevo_servicio') }}" class="boton boton--acento">Publicar servicio</a>
+        </div>
+
+        <div class="panel__perfil">
+            <div>
+                <h2 class="panel__subtitulo">Tu perfil</h2>
+                {% if perfil.descripcion %}
+                <p class="panel__perfil-descripcion">{{ perfil.descripcion }}</p>
+                <p class="panel__perfil-dato">
+                    <strong>WhatsApp:</strong> {{ perfil.telefono_whatsapp or "Sin definir" }}
+                </p>
+                {% if foto_url_actual and perfil.foto_moderation_status != "approved" %}
+                {% set texto, clase = etiqueta_moderacion(perfil.foto_moderation_status) %}
+                <p class="badge-moderacion badge-moderacion--{{ clase }}">Foto: {{ texto }}</p>
+                {% endif %}
+                {% else %}
+                <p class="aviso-vacio">
+                    Todavía no completaste tu perfil. Los clientes lo ven antes de contactarte.
+                </p>
+                {% endif %}
+            </div>
+            <a href="{{ url_for('dashboard.editar_perfil') }}" class="boton boton--secundario">
+                {% if perfil.descripcion %}Editar perfil{% else %}Completar perfil{% endif %}
+            </a>
+        </div>
+
+        <div class="panel__perfil">
+            <div>
+                <h2 class="panel__subtitulo">Trabajos realizados</h2>
+                <p class="panel__perfil-dato">
+                    {{ cantidad_portafolio_aprobado }} foto{{ "s" if cantidad_portafolio_aprobado != 1 else "" }} aprobada{{ "s" if cantidad_portafolio_aprobado != 1 else "" }}
+                    (mínimo {{ minimo_portafolio }} para poder publicar servicios nuevos)
+                    {% if cantidad_portafolio_en_revision %}
+                    · {{ cantidad_portafolio_en_revision }} más en revisión
+                    {% endif %}
+                    {% if cantidad_portafolio_rechazado %}
+                    · {{ cantidad_portafolio_rechazado }} rechazada{{ "s" if cantidad_portafolio_rechazado != 1 else "" }}
+                    {% endif %}
+                </p>
+            </div>
+            <a href="{{ url_for('dashboard.portafolio') }}" class="boton boton--secundario">Administrar portafolio</a>
+        </div>
+
+        <h2 class="panel__subtitulo">Tus servicios publicados</h2>
+
+        {% if servicios %}
+        <div class="panel__servicios">
+            {% for servicio in servicios %}
+            <article class="servicio-fila">
+                <div>
+                    <p class="servicio-fila__titulo">{{ servicio.titulo }}</p>
+                    <p class="servicio-fila__meta">
+                        {{ servicio.categoria.nombre }} ·
+                        ${{ "%.2f"|format(servicio.precio) }} / {{ servicio.modalidad_legible }} ·
+                        {{ servicio.disponibilidad }}
+                    </p>
+                </div>
+                <a href="{{ url_for('dashboard.editar_servicio', servicio_id=servicio.id) }}" class="boton boton--secundario">Editar</a>
+            </article>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="aviso-vacio">
+            Todavía no publicaste ningún servicio.
+            <a href="{{ url_for('dashboard.nuevo_servicio') }}">Publicá el primero</a>.
+        </p>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}

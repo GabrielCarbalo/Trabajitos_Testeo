@@ -1,0 +1,19 @@
+<!--
+    Patrón geométrico original inspirado en referencias visuales mesoamericanas
+    Maya/Nahua (grecas escalonadas, formas romboidales). No reproduce ningún
+    glifo, calendario, deidad ni pieza arqueológica específica — es una
+    abstracción propia de TRABAJITOS, pensada para usarse como textura de
+    fondo muy sutil (ver .patron-cultural en style.css), al estilo de los
+    patrones tono-sobre-tono de camisetas de selecciones nacionales.
+
+    Se usa como CSS mask-image (no como imagen visible directamente), por
+    eso las formas son sólidas: el color final lo pone el CSS del elemento
+    que lo usa, no este archivo.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
+    <rect x="20" y="8" width="8" height="4"/>
+    <rect x="16" y="12" width="16" height="8"/>
+    <rect x="12" y="20" width="24" height="8"/>
+    <rect x="16" y="28" width="16" height="8"/>
+    <rect x="20" y="36" width="8" height="4"/>
+</svg>

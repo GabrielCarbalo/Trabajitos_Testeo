@@ -1,0 +1,35 @@
+{# Encabezado del sitio: logotipo (wordmark), navegación principal y CTA. #}
+<header class="header">
+    <div class="contenedor header__inner">
+        <a href="{{ url_for('main.home') }}" class="header__logo" aria-label="TRABAJITOS, ir al inicio">
+            TRABAJITOS
+        </a>
+
+        <button type="button" class="header__menu-toggle" id="menu-toggle" aria-expanded="false" aria-controls="nav-principal">
+            <span class="sr-only" id="menu-toggle-label">Abrir menú</span>
+            <span class="header__menu-icon" aria-hidden="true"></span>
+        </button>
+
+        <nav class="header__nav" id="nav-principal" aria-label="Navegación principal">
+            <a href="{{ url_for('main.home') }}">Inicio</a>
+            <a href="{{ url_for('main.explorar') }}">Explorar</a>
+            {% if current_user.is_authenticated %}
+                {% if current_user.es_colaborador %}
+                <a href="{{ url_for('dashboard.index') }}">Mi panel</a>
+                {% endif %}
+                <span class="header__usuario">Hola, {{ current_user.nombre.split(" ")[0] }}</span>
+                {# Logout va por POST (no GET): un simple link permitiría que
+                   cualquier página externa desloguee al usuario con solo
+                   cargar la URL. #}
+                <form action="{{ url_for('auth.logout') }}" method="post" class="header__logout-form">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="boton boton--acento header__cta">Cerrar sesión</button>
+                </form>
+            {% else %}
+                <a href="{{ url_for('dashboard.index') }}">Ofrecer un servicio</a>
+                <a href="{{ url_for('auth.login') }}">Iniciar sesión</a>
+                <a href="{{ url_for('auth.registro') }}" class="boton boton--acento header__cta">Crear cuenta</a>
+            {% endif %}
+        </nav>
+    </div>
+</header>

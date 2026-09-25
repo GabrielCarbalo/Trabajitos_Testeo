@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block title %}Explorar — TRABAJITOS{% endblock %}
+
+{% block content %}
+<section class="seccion explorar">
+    <div class="contenedor">
+        <h1 class="seccion__titulo">Explorá trabajitos</h1>
+        <p class="seccion__subtitulo">Buscá, filtrá y encontrá a quien necesitás.</p>
+
+        <form method="get" class="filtros" role="search">
+            <div class="filtros__busqueda">
+                <label for="q" class="sr-only">¿Qué necesitás?</label>
+                <input type="search" id="q" name="q" value="{{ q }}" placeholder="¿Qué necesitás?">
+            </div>
+
+            <div class="filtros__campo">
+                <label for="categoria">Categoría</label>
+                <select id="categoria" name="categoria">
+                    <option value="">Todas</option>
+                    {% for categoria in categorias %}
+                    <option value="{{ categoria.slug }}" {% if categoria_slug == categoria.slug %}selected{% endif %}>
+                        {{ categoria.nombre }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="filtros__campo">
+                <label for="modalidad">Modalidad</label>
+                <select id="modalidad" name="modalidad">
+                    <option value="">Todas</option>
+                    <option value="hora" {% if modalidad == "hora" %}selected{% endif %}>Por hora</option>
+                    <option value="dia" {% if modalidad == "dia" %}selected{% endif %}>Por día</option>
+                    <option value="tarea" {% if modalidad == "tarea" %}selected{% endif %}>Por tarea</option>
+                </select>
+            </div>
+
+            <div class="filtros__campo">
+                <label for="precio_max">Precio máximo (USD)</label>
+                <input type="number" id="precio_max" name="precio_max" value="{{ precio_max_raw }}"
+                    min="0" step="1" placeholder="Sin límite">
+            </div>
+
+            <button type="submit" class="boton boton--acento">Filtrar</button>
+            {% if q or categoria_slug or modalidad or precio_max_raw %}
+            <a href="{{ url_for('main.explorar') }}" class="filtros__limpiar">Limpiar filtros</a>
+            {% endif %}
+        </form>
+
+        {% if servicios %}
+        <p class="explorar__conteo">
+            {{ servicios|length }} trabajito{{ "s" if servicios|length != 1 else "" }} encontrado{{ "s" if servicios|length != 1 else "" }}
+        </p>
+        <div class="servicios-destacados__grid">
+            {% for servicio in servicios %}
+                {% include "partials/service_card.html" %}
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="aviso-vacio">No encontramos trabajitos con esos filtros. Probá con otra búsqueda.</p>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}

@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+
+{% block title %}Necesitás fotos de tu trabajo — TRABAJITOS{% endblock %}
+
+{% block content %}
+<section class="seccion en-construccion">
+    <div class="contenedor en-construccion__inner">
+        <p class="en-construccion__etiqueta">Un paso más</p>
+        <h1 class="en-construccion__titulo">Necesitás fotos de trabajos realizados</h1>
+        <p class="en-construccion__mensaje">
+            Para publicar un servicio nuevo hace falta tener al menos {{ minimo }} fotos aprobadas
+            en tu portafolio. Te {{ "falta" if faltan == 1 else "faltan" }} {{ faltan }}.
+            Esto ayuda a que los clientes confíen en tu experiencia.
+        </p>
+        <a href="{{ url_for('dashboard.portafolio') }}" class="boton boton--acento">Agregar trabajo</a>
+    </div>
+</section>
+{% endblock %}

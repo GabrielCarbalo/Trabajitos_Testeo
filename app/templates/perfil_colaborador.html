@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block title %}{{ perfil.usuario.nombre }} — TRABAJITOS{% endblock %}
+
+{% block content %}
+{% if baneado %}
+<section class="seccion en-construccion">
+    <div class="contenedor en-construccion__inner">
+        <p class="en-construccion__etiqueta">Cuenta suspendida</p>
+        <h1 class="en-construccion__titulo">Este perfil ya no está disponible</h1>
+        <p class="en-construccion__mensaje">Esta cuenta fue suspendida por incumplir las normas de la plataforma.</p>
+        <a href="{{ url_for('main.home') }}" class="boton boton--acento">Volver al inicio</a>
+    </div>
+</section>
+{% else %}
+<section class="seccion perfil-colaborador patron-cultural patron-cultural--sobre-claro">
+    <div class="contenedor perfil-colaborador__inner">
+        <div class="avatar avatar--lg" aria-hidden="true">
+            {% set url = avatar_url(perfil) %}
+            {% if url %}
+            <img src="{{ url }}" alt="" class="avatar__img">
+            {% else %}
+            <span class="avatar__inicial">{{ perfil.usuario.nombre[0] }}</span>
+            {% endif %}
+        </div>
+
+        <div class="perfil-colaborador__info">
+            <h1 class="perfil-colaborador__nombre">{{ perfil.usuario.nombre }}</h1>
+
+            {% if perfil.descripcion %}
+            <p class="perfil-colaborador__descripcion">{{ perfil.descripcion }}</p>
+            {% endif %}
+
+            {% if whatsapp_link %}
+            <a href="{{ whatsapp_link }}" class="boton boton--acento" target="_blank" rel="noopener noreferrer">
+                Contactar por WhatsApp
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    {# ============ PORTAFOLIO ============
+       Solo se muestran fotos ya aprobadas (perfil.portafolio_aprobado, calculado
+       en la ruta). Galería sencilla, no un feed tipo Instagram: 2-3 columnas en
+       desktop, 1-2 en mobile (ver CSS), con una vista ampliada simple al hacer clic. #}
+    {% if portafolio %}
+    <div class="contenedor">
+        <h2 class="panel__subtitulo">Trabajos realizados</h2>
+        <div class="portafolio-publico__grid">
+            {% for foto in portafolio %}
+            <button type="button" class="portafolio-publico__item"
+                data-src="{{ portafolio_url(foto) }}"
+                data-desc="{{ foto.descripcion or '' }}">
+                <img src="{{ portafolio_url(foto) }}" alt="{{ foto.descripcion or 'Foto de un trabajo realizado' }}" loading="lazy">
+            </button>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="contenedor">
+        <h2 class="panel__subtitulo">Servicios que ofrece</h2>
+
+        {% if servicios %}
+        {% set ocultar_datos_colaborador = True %}
+        <div class="servicios-destacados__grid">
+            {% for servicio in servicios %}
+                {% include "partials/service_card.html" %}
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="aviso-vacio">Este colaborador todavía no publicó servicios.</p>
+        {% endif %}
+    </div>
+</section>
+
+{# Vista ampliada simple al hacer clic en una foto del portafolio (ver main.js). #}
+<dialog id="lightbox-portafolio" class="lightbox">
+    <button type="button" class="lightbox__cerrar" id="lightbox-cerrar" aria-label="Cerrar vista ampliada">×</button>
+    <img id="lightbox-img" src="" alt="">
+    <p id="lightbox-desc" class="lightbox__desc"></p>
+</dialog>
+{% endif %}
+{% endblock %}

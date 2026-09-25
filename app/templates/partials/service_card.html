@@ -1,0 +1,49 @@
+{#
+    Tarjeta de servicio: usada en "Trabajitos disponibles" (Home), en
+    /explorar, y en el perfil público de un colaborador.
+
+    Por defecto muestra el nombre del colaborador y un botón "Ver perfil".
+    Si la incluís desde la página del propio colaborador, esos dos datos
+    son redundantes (ya estás ahí) — en ese caso, seteá
+    "ocultar_datos_colaborador" a true en el template que hace el include
+    y en su lugar se muestra la descripción del servicio.
+#}
+<article class="tarjeta-servicio">
+    {# Si el colaborador tiene foto de perfil aprobada, la usamos de fondo
+       de la tarjeta en vez del degradé genérico — mismo layout, mismo
+       recorte (object-fit: cover), solo cambia qué hay detrás. #}
+    {% set foto = avatar_url(servicio.colaborador) %}
+    <div class="tarjeta-servicio__imagen{% if foto %} tarjeta-servicio__imagen--foto{% endif %}"
+        {% if foto %}style="background-image: url('{{ foto }}');"{% endif %} aria-hidden="true">
+        <span class="tarjeta-servicio__categoria">{{ servicio.categoria.nombre }}</span>
+    </div>
+    <div class="tarjeta-servicio__body">
+        <h3 class="tarjeta-servicio__titulo">{{ servicio.titulo }}</h3>
+
+        {% if ocultar_datos_colaborador %}
+        <p class="tarjeta-servicio__descripcion">{{ servicio.descripcion }}</p>
+        {% else %}
+        <p class="tarjeta-servicio__colaborador">{{ servicio.colaborador.usuario.nombre }}</p>
+        {% endif %}
+
+        <dl class="tarjeta-servicio__datos">
+            <div>
+                <dt class="sr-only">Precio</dt>
+                <dd class="tarjeta-servicio__precio">
+                    ${{ "%.2f"|format(servicio.precio) }}
+                    <span class="tarjeta-servicio__modalidad">/ {{ servicio.modalidad_legible }}</span>
+                </dd>
+            </div>
+            <div>
+                <dt class="sr-only">Disponibilidad</dt>
+                <dd class="tarjeta-servicio__disponibilidad">{{ servicio.disponibilidad }}</dd>
+            </div>
+        </dl>
+
+        {% if not ocultar_datos_colaborador %}
+        <a href="{{ url_for('main.perfil_colaborador', colaborador_id=servicio.colaborador.id) }}" class="boton boton--secundario tarjeta-servicio__cta">
+            Ver perfil
+        </a>
+        {% endif %}
+    </div>
+</article>

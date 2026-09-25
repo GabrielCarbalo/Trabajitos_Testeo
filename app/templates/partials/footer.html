@@ -1,0 +1,30 @@
+{# Pie de página: marca, descripción breve y enlaces principales. #}
+<footer class="footer">
+    <div class="contenedor footer__inner">
+        <div class="footer__marca">
+            <p class="footer__logo">TRABAJITOS</p>
+            <p class="footer__descripcion">
+                Conectamos a personas que necesitan un servicio puntual con
+                colaboradores que saben hacerlo. Proyecto académico hecho en El Salvador.
+            </p>
+        </div>
+
+        <nav class="footer__enlaces" aria-label="Enlaces del pie de página">
+            <a href="{{ url_for('main.explorar') }}">Explorar</a>
+            {# Una cuenta de cliente no tiene panel: el link le daría un 403. #}
+            {% if not current_user.is_authenticated or current_user.es_colaborador %}
+            <a href="{{ url_for('dashboard.index') }}">Ofrecer servicios</a>
+            {% endif %}
+            {% if current_user.is_authenticated %}
+            <form action="{{ url_for('auth.logout') }}" method="post" class="footer__logout-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="footer__logout-boton">Cerrar sesión</button>
+            </form>
+            {% else %}
+            <a href="{{ url_for('auth.login') }}">Iniciar sesión</a>
+            {% endif %}
+        </nav>
+    </div>
+
+    <p class="footer__nota">Proyecto universitario de Desarrollo de Software · {{ anio_actual }}</p>
+</footer>
