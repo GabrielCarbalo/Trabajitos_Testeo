@@ -24,6 +24,7 @@ from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
 
 from flask_login import UserMixin
+from sqlalchemy import false
 from sqlalchemy.orm import validates
 from werkzeug.security import check_password_hash, generate_password_hash
 
@@ -80,6 +81,26 @@ class PortafolioInsuficiente(Exception):
     """El colaborador todavía no tiene el mínimo de fotos aprobadas para publicar."""
 
 
+class AccionNoPermitida(Exception):
+    """Una acción de administración que las reglas no permiten (ej. suspender a un admin)."""
+
+
+# Moderación manual (panel de administración, app/routes/admin.py).
+LONGITUD_MAXIMA_MOTIVO = 255
+MOTIVO_RECHAZO_POR_DEFECTO = "La fotografía no cumple las normas de la plataforma."
+
+
+def _normalizar_motivo_rechazo(motivo):
+    """
+    Motivo que ve el colaborador cuando se rechaza una foto. Es opcional:
+    si el admin no escribe nada se usa un texto genérico y no acusatorio.
+    """
+    motivo = (motivo or "").strip()
+    if len(motivo) > LONGITUD_MAXIMA_MOTIVO:
+        raise ValueError(f"El motivo no puede tener más de {LONGITUD_MAXIMA_MOTIVO} caracteres.")
+    return motivo or MOTIVO_RECHAZO_POR_DEFECTO
+
+
 def ahora_utc():
     """Hora actual en UTC, usada como valor por defecto en fecha_creacion."""
     return datetime.now(timezone.utc)
@@ -103,6 +124,11 @@ class User(UserMixin, db.Model):
     tipo_usuario = db.Column(db.String(20), nullable=False)  # "cliente" | "colaborador"
     account_status = db.Column(db.String(10), nullable=False, default="active")
     fecha_creacion = db.Column(db.DateTime, default=ahora_utc, nullable=False)
+
+    # Administrador: un permiso aparte de tipo_usuario (no un tercer tipo de
+    # cuenta), así el registro público sigue aceptando solo cliente o
+    # colaborador. Solo se activa con el comando "flask crear-admin".
+    es_admin = db.Column(db.Boolean, nullable=False, default=False, server_default=false())
 
     # Relación uno-a-uno: solo existe si el usuario es colaborador.
     perfil_colaborador = db.relationship(
@@ -230,6 +256,30 @@ class User(UserMixin, db.Model):
             usuario.perfil_colaborador = CollaboratorProfile()
         return usuario
 
+    @classmethod
+    def crear_admin(cls, nombre, correo, password):
+        """
+        Crea una cuenta de administrador (sin guardarla). Aplica las mismas
+        reglas que el registro (correo válido y no repetido, contraseña
+        mínima). Es una cuenta de tipo "cliente": no ofrece servicios, solo
+        tiene el permiso es_admin. Lo usa el comando "flask crear-admin".
+        """
+        usuario = cls.registrar(
+            {"nombre": nombre, "correo": correo, "password": password, "tipo_usuario": "cliente"}
+        )
+        usuario.es_admin = True
+        return usuario
+
+    def banear(self):
+        """Suspende la cuenta. Un administrador no se puede suspender (tampoco a sí mismo)."""
+        if self.es_admin:
+            raise AccionNoPermitida("No se puede suspender una cuenta de administrador.")
+        self.account_status = "banned"
+
+    def reactivar(self):
+        """Vuelve a habilitar una cuenta suspendida."""
+        self.account_status = "active"
+
     def set_password(self, password):
         """Guarda un hash seguro de la contraseña, nunca el texto plano."""
         self._validar_password(password)
@@ -329,6 +379,16 @@ class CollaboratorProfile(db.Model):
             raise PortafolioInsuficiente()
         return Service.desde_datos(self.id, datos)
 
+    def aprobar_foto(self):
+        """Moderación manual: la foto de perfil pasa a ser pública."""
+        self.foto_moderation_status = "approved"
+        self.foto_moderation_reason = None
+
+    def rechazar_foto(self, motivo=None):
+        """Moderación manual: la foto de perfil no se muestra. Lanza ValueError si el motivo es muy largo."""
+        self.foto_moderation_reason = _normalizar_motivo_rechazo(motivo)
+        self.foto_moderation_status = "rejected"
+
     def __repr__(self):
         return f"<CollaboratorProfile user_id={self.user_id}>"
 
@@ -363,6 +423,16 @@ class PortfolioImage(db.Model):
             name="ck_portfolio_images_moderation_status",
         ),
     )
+
+    def aprobar(self):
+        """Moderación manual: la foto pasa a ser pública."""
+        self.moderation_status = "approved"
+        self.moderation_reason = None
+
+    def rechazar(self, motivo=None):
+        """Moderación manual: la foto no se muestra. Lanza ValueError si el motivo es muy largo."""
+        self.moderation_reason = _normalizar_motivo_rechazo(motivo)
+        self.moderation_status = "rejected"
 
     def __repr__(self):
         return f"<PortfolioImage {self.filename}>"

@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+
+{% block title %}Cuentas — TRABAJITOS{% endblock %}
+
+{% block content %}
+<section class="seccion panel">
+    <div class="contenedor">
+        <div class="panel__cabecera">
+            <div>
+                <h1 class="seccion__titulo">Cuentas</h1>
+                <p class="seccion__subtitulo">
+                    Una cuenta suspendida no puede iniciar sesión, y sus servicios y fotos dejan de mostrarse.
+                </p>
+            </div>
+            <a href="{{ url_for('admin.index') }}" class="boton boton--secundario">Volver a administración</a>
+        </div>
+
+        <form method="get" class="filtros" role="search">
+            <div class="filtros__busqueda">
+                <label for="q" class="sr-only">Buscar por nombre o correo</label>
+                <input type="search" id="q" name="q" value="{{ q }}" placeholder="Nombre o correo">
+            </div>
+            <div class="filtros__campo">
+                <label for="estado">Estado</label>
+                <select id="estado" name="estado">
+                    <option value="">Todas</option>
+                    <option value="active" {% if estado == "active" %}selected{% endif %}>Activas</option>
+                    <option value="banned" {% if estado == "banned" %}selected{% endif %}>Suspendidas</option>
+                </select>
+            </div>
+            <button type="submit" class="boton boton--acento">Buscar</button>
+            {% if q or estado %}
+            <a href="{{ url_for('admin.cuentas') }}" class="filtros__limpiar">Limpiar filtros</a>
+            {% endif %}
+        </form>
+
+        {% if pagina.items %}
+        <div class="panel__servicios">
+            {% for usuario in pagina.items %}
+            <article class="servicio-fila">
+                <div>
+                    <p class="servicio-fila__titulo">
+                        {% if usuario.es_colaborador and usuario.perfil_colaborador %}
+                        <a href="{{ url_for('main.perfil_colaborador', colaborador_id=usuario.perfil_colaborador.id) }}">{{ usuario.nombre }}</a>
+                        {% else %}
+                        {{ usuario.nombre }}
+                        {% endif %}
+                    </p>
+                    <p class="servicio-fila__meta">
+                        {{ usuario.correo }} ·
+                        {% if usuario.es_admin %}Administrador{% elif usuario.es_colaborador %}Colaborador{% else %}Cliente{% endif %}
+                    </p>
+                </div>
+
+                <div class="admin__acciones">
+                    {% if usuario.esta_baneado %}
+                    <span class="badge-moderacion badge-moderacion--rechazada">Suspendida</span>
+                    {% else %}
+                    <span class="badge-moderacion badge-moderacion--aprobada">Activa</span>
+                    {% endif %}
+
+                    {# Un administrador no se puede suspender (ver User.banear). #}
+                    {% if not usuario.es_admin %}
+                    {% if usuario.esta_baneado %}
+                    <form method="post" action="{{ url_for('admin.reactivar_cuenta', user_id=usuario.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="q" value="{{ q }}">
+                        <input type="hidden" name="estado" value="{{ estado }}">
+                        <button type="submit" class="boton boton--secundario portafolio__boton-chico">Reactivar</button>
+                    </form>
+                    {% else %}
+                    <form method="post" action="{{ url_for('admin.banear_cuenta', user_id=usuario.id) }}"
+                        {# tojson (y comillas simples en el atributo) y no |e: el nombre va
+                           dentro de un string de JavaScript, donde escapar para HTML no alcanza. #}
+                        onsubmit='return confirm({{ ("¿Suspender la cuenta de " ~ usuario.nombre ~ "?")|tojson }});'>
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="q" value="{{ q }}">
+                        <input type="hidden" name="estado" value="{{ estado }}">
+                        <button type="submit" class="portafolio__eliminar">Suspender</button>
+                    </form>
+                    {% endif %}
+                    {% endif %}
+                </div>
+            </article>
+            {% endfor %}
+        </div>
+
+        {% if pagina.pages > 1 %}
+        <nav class="admin__paginacion" aria-label="Páginas de cuentas">
+            {% if pagina.has_prev %}
+            <a href="{{ url_for('admin.cuentas', q=q or None, estado=estado or None, page=pagina.prev_num) }}">← Anterior</a>
+            {% endif %}
+            <span>Página {{ pagina.page }} de {{ pagina.pages }}</span>
+            {% if pagina.has_next %}
+            <a href="{{ url_for('admin.cuentas', q=q or None, estado=estado or None, page=pagina.next_num) }}">Siguiente →</a>
+            {% endif %}
+        </nav>
+        {% endif %}
+        {% else %}
+        <p class="aviso-vacio">No encontramos cuentas con esos filtros.</p>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}

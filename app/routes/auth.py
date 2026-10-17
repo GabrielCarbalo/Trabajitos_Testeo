@@ -119,7 +119,7 @@ def login():
         siguiente = request.args.get("next")
         if _es_redireccion_segura(siguiente):
             return redirect(siguiente)
-        return redirect(url_for("main.home"))
+        return redirect(url_for("admin.index" if usuario.es_admin else "main.home"))
 
     return render_template("auth/login.html", correo=correo)
 

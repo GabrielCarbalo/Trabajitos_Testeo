@@ -42,7 +42,9 @@ trabajitos/
 │   ├── routes/            # Blueprints: rutas agrupadas por área
 │   │   ├── main.py        # Home, Explorar, Perfil de colaborador
 │   │   ├── auth.py        # Registro, login, logout
-│   │   └── dashboard.py   # Panel privado, foto de perfil, portafolio, servicios
+│   │   ├── dashboard.py   # Panel privado, foto de perfil, portafolio, servicios
+│   │   └── admin.py       # Administración: suspender cuentas, moderar fotos
+│   ├── cli.py            # Comandos de terminal propios (flask crear-admin)
 │   ├── services/           # Lógica que no es "una ruta": subida y moderación de imágenes
 │   │   ├── image_storage.py       # Dónde se guardan las fotos (local hoy, cloud a futuro)
 │   │   ├── image_quality_service.py  # Señales de calidad/moderación de una foto
@@ -126,7 +128,23 @@ colaborador que crea comparten la contraseña `demo1234` (por ejemplo,
 `carlos.demo@trabajitos.test` / `demo1234`) para poder loguearse y probar
 el panel de colaborador sin tener que registrar una cuenta nueva.
 
-### 5. Ejecutar localmente
+### 5. Crear una cuenta de administrador (opcional)
+
+El panel de administración (`/admin/`) permite suspender o reactivar
+cuentas y aprobar o rechazar las fotos que quedaron en revisión. Una cuenta
+de administrador **no se puede crear desde el registro público**: se crea
+desde la terminal, y la contraseña se pide de forma oculta:
+
+```bash
+set FLASK_APP=run.py
+flask crear-admin
+```
+
+Al iniciar sesión con esa cuenta, el header muestra el link
+"Administración". Un administrador no puede ser suspendido (tampoco por
+otro administrador).
+
+### 6. Ejecutar localmente
 
 ```bash
 python run.py
@@ -143,7 +161,7 @@ La aplicación queda disponible en `http://127.0.0.1:5000`.
 > flask db upgrade
 > ```
 
-### 6. Detener el servidor
+### 7. Detener el servidor
 
 Presionar `Ctrl + C` en la terminal donde está corriendo.
 
@@ -229,9 +247,9 @@ Los colaboradores suben su foto de perfil y fotos de trabajos realizados
   inactiva a propósito: necesita aprobar una librería nueva primero (ver
   `app/services/image_quality_service.py` y `DESARROLLO.md`).
 - Una cuenta con `account_status = "banned"` no puede iniciar sesión, y sus
-  servicios y fotos dejan de mostrarse públicamente. Todavía no hay un
-  panel de administración para banear cuentas — hoy es una operación manual
-  directa sobre la base de datos, documentada como pendiente.
+  servicios y fotos dejan de mostrarse públicamente. Suspender, reactivar
+  y moderar fotos se hace desde el panel de administración (`/admin/`, ver
+  "Crear una cuenta de administrador" en Instalación).
 
 ## Estado del proyecto
 

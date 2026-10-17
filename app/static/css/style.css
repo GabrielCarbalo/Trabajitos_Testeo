@@ -1443,6 +1443,28 @@ input:focus-visible {
 }
 
 /* --------------------------------------------------------------------------
+   16b. PANEL DE ADMINISTRACIÓN
+   Reutiliza .panel__*, .servicio-fila, .portafolio__grid y .badge-moderacion;
+   acá solo va lo que esas piezas no cubren.
+   -------------------------------------------------------------------------- */
+.admin__acciones {
+    display: flex;
+    align-items: center;
+    gap: var(--espacio-sm);
+    flex-wrap: wrap;
+}
+
+.admin__paginacion {
+    margin-top: var(--espacio-md);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: var(--espacio-md);
+    font-size: 0.9rem;
+    color: var(--evergreen);
+}
+
+/* --------------------------------------------------------------------------
    17. PATRÓN CULTURAL
    Patrón geométrico original inspirado en referencias mesoamericanas
    Maya/Nahua (ver app/static/img/patron-mesoamericano.svg) — no reproduce

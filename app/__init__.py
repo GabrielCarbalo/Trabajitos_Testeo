@@ -81,14 +81,22 @@ def create_app(config_class=Config):
     migrate.init_app(app, db)
 
     # Registro de blueprints: cada archivo de app/routes/ agrupa las rutas
-    # de una parte de la aplicación (público, autenticación, panel privado).
+    # de una parte de la aplicación (público, autenticación, panel privado,
+    # administración).
     from app.routes.main import main_bp
     from app.routes.auth import auth_bp
     from app.routes.dashboard import dashboard_bp
+    from app.routes.admin import admin_bp
 
     app.register_blueprint(main_bp)
     app.register_blueprint(auth_bp)
     app.register_blueprint(dashboard_bp)
+    app.register_blueprint(admin_bp)
+
+    # Comandos de terminal propios ("flask crear-admin"), ver app/cli.py.
+    from app.cli import crear_admin
+
+    app.cli.add_command(crear_admin)
 
     @app.before_request
     def cerrar_sesion_de_cuentas_baneadas():
@@ -150,7 +158,9 @@ def create_app(config_class=Config):
             "error.html",
             codigo=403,
             titulo="No tenés acceso a esta página",
-            mensaje="Esta sección es solo para cuentas de colaborador.",
+            # Genérico a propósito: el 403 lo usan tanto el panel del
+            # colaborador como el de administración.
+            mensaje="Tu cuenta no tiene permiso para ver esta sección.",
         ), 403
 
     @app.errorhandler(404)

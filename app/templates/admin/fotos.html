@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block title %}Fotos en revisión — TRABAJITOS{% endblock %}
+
+{#
+    Tarjeta de una foto en revisión, compartida por fotos de perfil y de
+    portafolio: solo cambian la imagen, a quién pertenece y a qué rutas van
+    los botones de aprobar/rechazar.
+#}
+{% macro tarjeta_revision(clave, imagen_url, perfil, estado, motivo, url_aprobar, url_rechazar, descripcion=None) %}
+<article class="portafolio__item">
+    <img src="{{ imagen_url }}" alt="{{ descripcion or '' }}" class="portafolio__img">
+
+    <p class="servicio-fila__titulo">
+        <a href="{{ url_for('main.perfil_colaborador', colaborador_id=perfil.id) }}">{{ perfil.usuario.nombre }}</a>
+    </p>
+    {% if descripcion %}<p class="campo__ayuda">{{ descripcion }}</p>{% endif %}
+
+    {% set texto, clase = etiqueta_moderacion(estado) %}
+    <span class="badge-moderacion badge-moderacion--{{ clase }}">{{ texto }}</span>
+    {% if motivo %}<p class="campo__ayuda">{{ motivo }}</p>{% endif %}
+
+    <form method="post" action="{{ url_aprobar }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="boton boton--acento portafolio__boton-chico">Aprobar</button>
+    </form>
+
+    <form method="post" action="{{ url_rechazar }}" class="portafolio__form-descripcion">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label class="sr-only" for="motivo-{{ clave }}">Motivo del rechazo</label>
+        <input type="text" id="motivo-{{ clave }}" name="motivo" maxlength="255" placeholder="Motivo (opcional)">
+        <button type="submit" class="boton boton--secundario portafolio__boton-chico">Rechazar</button>
+    </form>
+</article>
+{% endmacro %}
+
+{% block content %}
+<section class="seccion panel">
+    <div class="contenedor">
+        <div class="panel__cabecera">
+            <div>
+                <h1 class="seccion__titulo">Fotos en revisión</h1>
+                <p class="seccion__subtitulo">
+                    Una foto aprobada se muestra públicamente. Si la rechazás, el colaborador ve el motivo en su panel.
+                </p>
+            </div>
+            <a href="{{ url_for('admin.index') }}" class="boton boton--secundario">Volver a administración</a>
+        </div>
+
+        <h2 class="panel__subtitulo">Fotos de perfil</h2>
+        {% if perfiles %}
+        <div class="portafolio__grid">
+            {% for perfil, imagen_url in perfiles %}
+            {{ tarjeta_revision(
+                "perfil-" ~ perfil.id, imagen_url, perfil, perfil.foto_moderation_status, perfil.foto_moderation_reason,
+                url_for('admin.aprobar_foto_perfil', perfil_id=perfil.id),
+                url_for('admin.rechazar_foto_perfil', perfil_id=perfil.id),
+            ) }}
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="aviso-vacio">No hay fotos de perfil en revisión.</p>
+        {% endif %}
+
+        <h2 class="panel__subtitulo">Fotos de portafolio</h2>
+        {% if portafolio %}
+        <div class="portafolio__grid">
+            {% for foto in portafolio %}
+            {{ tarjeta_revision(
+                "portafolio-" ~ foto.id, portafolio_url(foto), foto.perfil, foto.moderation_status, foto.moderation_reason,
+                url_for('admin.aprobar_foto_portafolio', foto_id=foto.id),
+                url_for('admin.rechazar_foto_portafolio', foto_id=foto.id),
+                descripcion=foto.descripcion,
+            ) }}
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="aviso-vacio">No hay fotos de portafolio en revisión.</p>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}
