@@ -515,3 +515,7 @@ corresponden a la Fase 4, cuando exista login real):
   facilitar filtros geográficos, pero no está en el alcance del MVP descrito
   (los filtros mínimos pedidos son categoría y disponibilidad), así que se
   deja fuera por ahora para no adelantar funcionalidad no solicitada.
+
+## Avisos derivados
+
+Los avisos del panel del colaborador y del administrador (`Aviso`, `CollaboratorProfile.avisos()` y `ResumenAdministracion.avisos()` en `app/models.py`) se calculan en cada visita a partir del estado actual de los datos; no se guardan en la base. La razón es que el esquema no registra cuándo cambió un estado (aprobación, rechazo, baneo), así que no se puede saber qué es "nuevo" ni qué ya leyó la persona. Por eso solo se avisan condiciones vigentes, que desaparecen solas al resolverse. Notificaciones persistentes requerirían una tabla propia con fecha y estado de lectura.

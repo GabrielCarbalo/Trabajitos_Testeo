@@ -20,6 +20,7 @@
                 {% if current_user.es_admin %}
                 <a href="{{ url_for('admin.index') }}">Administración</a>
                 {% endif %}
+                <a href="{{ url_for('cuenta.index') }}">{{ "Mi cuenta" if current_user.es_colaborador else "Mi perfil" }}</a>
                 <span class="header__usuario">Hola, {{ current_user.nombre.split(" ")[0] }}</span>
                 {# Logout va por POST (no GET): un simple link permitiría que
                    cualquier página externa desloguee al usuario con solo
@@ -29,7 +30,7 @@
                     <button type="submit" class="boton boton--acento header__cta">Cerrar sesión</button>
                 </form>
             {% else %}
-                <a href="{{ url_for('dashboard.index') }}">Ofrecer un servicio</a>
+                <a href="{{ url_for('auth.registro', tipo='colaborador') }}">Ofrecer un servicio</a>
                 <a href="{{ url_for('auth.login') }}">Iniciar sesión</a>
                 <a href="{{ url_for('auth.registro') }}" class="boton boton--acento header__cta">Crear cuenta</a>
             {% endif %}

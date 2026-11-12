@@ -16,7 +16,7 @@
         </div>
 
         {# ============ SUBIR NUEVA FOTO ============ #}
-        <div class="auth__card auth__card--ancha portafolio__subir">
+        <div class="auth__card auth__card--ancha portafolio__subir" id="agregar">
             <h2 class="panel__subtitulo panel__subtitulo--sin-margen">Agregar un trabajo</h2>
 
             <form method="post" action="{{ url_for('dashboard.subir_foto_portafolio') }}" enctype="multipart/form-data" class="auth__form">

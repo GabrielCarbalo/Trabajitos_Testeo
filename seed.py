@@ -13,11 +13,14 @@ registrar una cuenta nueva. No usar este patrón para cuentas reales.
 Uso:
     python seed.py
 
-El script es idempotente: si ya existen categorías cargadas, no vuelve a
+El script es idempotente: si las cuentas demo ya existen, no vuelve a
 insertar datos duplicados.
+
+NO ejecutar en producción: crea cuentas con una contraseña conocida.
 """
 
 from app import create_app, db
+from app.config import ProductionConfig, config_del_entorno
 from app.models import Category, CollaboratorProfile, Service, User
 
 CATEGORIAS_DEMO = ["Limpieza", "Jardinería", "Reparaciones", "Mascotas", "Cocina", "Otros"]
@@ -112,17 +115,23 @@ COLABORADORES_DEMO = [
 
 
 def seed():
+    if config_del_entorno() is ProductionConfig:
+        raise SystemExit("seed.py crea cuentas demo con contraseña conocida: no se ejecuta con APP_ENV=production.")
     app = create_app()
     with app.app_context():
-        if Category.query.first():
+        # Las categorías ya las carga la migración 5c1e7d9a2b40 ("flask db
+        # upgrade"); acá se reutilizan si existen y solo se crean las que falten.
+        if User.query.filter_by(correo=COLABORADORES_DEMO[0]["correo"]).first():
             print("Ya existen datos cargados. No se insertó nada nuevo.")
             return
 
         categorias = {}
         for nombre in CATEGORIAS_DEMO:
             slug = nombre.lower().replace("í", "i").replace("ó", "o").replace(" ", "-")
-            categoria = Category(nombre=nombre, slug=slug)
-            db.session.add(categoria)
+            categoria = Category.query.filter_by(slug=slug).first()
+            if categoria is None:
+                categoria = Category(nombre=nombre, slug=slug)
+                db.session.add(categoria)
             categorias[nombre] = categoria
 
         for datos in COLABORADORES_DEMO:

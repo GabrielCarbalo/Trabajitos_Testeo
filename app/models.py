@@ -20,6 +20,7 @@ de entrada natural para una tabla propia.
 """
 
 import re
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
 
@@ -52,6 +53,10 @@ ACCOUNT_STATUSES = ("active", "banned")
 # cuenta: eso es un paso aparte y manual (ver ACCOUNT_STATUSES).
 MODERATION_STATUSES = ("pending", "approved", "flagged", "rejected")
 
+# Estados que todavía esperan una decisión humana. "rejected" ya es una
+# decisión tomada, así que no vuelve a aparecer en la cola de moderación.
+ESTADOS_EN_REVISION = ("pending", "flagged")
+
 # Reglas de negocio del portafolio de trabajos.
 MINIMO_FOTOS_PORTAFOLIO_PARA_PUBLICAR = 2
 MAXIMO_FOTOS_PORTAFOLIO = 8
@@ -77,6 +82,10 @@ class RegistroInvalido(DatosInvalidos):
     """Los datos de un registro de usuario no cumplen las reglas (módulo Registro)."""
 
 
+class CuentaInvalida(DatosInvalidos):
+    """Los datos que la persona cambia en su cuenta (nombre, contraseña) no cumplen las reglas."""
+
+
 class PortafolioInsuficiente(Exception):
     """El colaborador todavía no tiene el mínimo de fotos aprobadas para publicar."""
 
@@ -99,6 +108,30 @@ def _normalizar_motivo_rechazo(motivo):
     if len(motivo) > LONGITUD_MAXIMA_MOTIVO:
         raise ValueError(f"El motivo no puede tener más de {LONGITUD_MAXIMA_MOTIVO} caracteres.")
     return motivo or MOTIVO_RECHAZO_POR_DEFECTO
+
+
+def _plural(cantidad, singular, plural):
+    """'1 foto' / '3 fotos': el texto de los avisos concuerda en número."""
+    return f"{cantidad} {singular if cantidad == 1 else plural}"
+
+
+@dataclass(frozen=True)
+class Aviso:
+    """
+    Un aviso derivado del estado actual de los datos (no se guarda en la base).
+    `destino` es el NOMBRE de un endpoint (ej. "dashboard.portafolio"), no una
+    URL: el Model no conoce las rutas, la View arma el enlace con url_for.
+    """
+
+    nivel: str  # "alerta" (requiere una acción) | "info"
+    mensaje: str
+    destino: str | None = None
+    texto_destino: str | None = None
+    parametros: dict = field(default_factory=dict)
+
+    def __post_init__(self):
+        if self.nivel not in ("alerta", "info"):
+            raise ValueError(f"Nivel de aviso desconocido: {self.nivel!r}")
 
 
 def ahora_utc():
@@ -280,6 +313,32 @@ class User(UserMixin, db.Model):
         """Vuelve a habilitar una cuenta suspendida."""
         self.account_status = "active"
 
+    def actualizar_nombre(self, nombre):
+        """Cambia el nombre con las mismas reglas del registro. Si no es válido, el nombre queda como estaba."""
+        try:
+            self.nombre = nombre  # @validates rechaza antes de asignar
+        except ValueError as error:
+            raise CuentaInvalida([str(error)])
+
+    def cambiar_password(self, actual, nueva, confirmacion):
+        """
+        Cambia la contraseña exigiendo la actual (por si alguien usa una sesión
+        ajena abierta). Junta TODOS los errores para mostrarlos de una vez.
+        Guardar (commit) es responsabilidad del Controller.
+        """
+        errores = []
+        if not self.check_password(actual or ""):
+            errores.append("La contraseña actual no es correcta.")
+        try:
+            self._validar_password(nueva)
+        except ValueError as error:
+            errores.append(str(error))
+        if nueva != confirmacion:
+            errores.append("Las contraseñas nuevas no coinciden.")
+        if errores:
+            raise CuentaInvalida(errores)
+        self.set_password(nueva)
+
     def set_password(self, password):
         """Guarda un hash seguro de la contraseña, nunca el texto plano."""
         self._validar_password(password)
@@ -296,6 +355,13 @@ class User(UserMixin, db.Model):
     @property
     def esta_baneado(self):
         return self.account_status == "banned"
+
+    @property
+    def rol_legible(self):
+        """Texto del tipo de cuenta para mostrar; el permiso de admin tiene prioridad."""
+        if self.es_admin:
+            return "Administrador"
+        return "Colaborador" if self.es_colaborador else "Cliente"
 
     def __repr__(self):
         return f"<User {self.correo}>"
@@ -365,6 +431,79 @@ class CollaboratorProfile(db.Model):
         (ver app/routes/dashboard.py: nuevo_servicio).
         """
         return len(self.portafolio_aprobado) >= MINIMO_FOTOS_PORTAFOLIO_PARA_PUBLICAR
+
+    def contar_portafolio(self, *estados):
+        """Cantidad de fotos del portafolio en alguno de los estados de moderación dados."""
+        return self.portafolio.filter(PortfolioImage.moderation_status.in_(estados)).count()
+
+    @property
+    def perfil_completo(self):
+        """True si ya tiene descripción, WhatsApp y una foto de perfil visible."""
+        return bool(self.descripcion) and bool(self.telefono_whatsapp) and self.foto_visible
+
+    def avisos(self):
+        """
+        Avisos del panel del colaborador, derivados del estado actual de su
+        perfil (alertas primero). No se guardan: la base no registra CUÁNDO
+        cambió un estado, así que solo se avisa de condiciones que siguen
+        vigentes y desaparecen solas al resolverse.
+        """
+        alertas, infos = [], []
+        editar, portafolio = "dashboard.editar_perfil", "dashboard.portafolio"
+
+        if not self.descripcion:
+            alertas.append(Aviso(
+                "alerta", "Tu perfil todavía no tiene descripción: los clientes la ven antes de contactarte.",
+                editar, "Completar perfil",
+            ))
+        if not self.telefono_whatsapp:
+            alertas.append(Aviso(
+                "alerta", "Agregá tu WhatsApp: sin él tu perfil público no muestra el botón de WhatsApp.",
+                editar, "Agregar WhatsApp",
+            ))
+
+        if not self.foto_filename:
+            infos.append(Aviso("info", "Subí una foto de perfil para que los clientes te reconozcan.", editar, "Subir foto"))
+        elif self.foto_moderation_status == "rejected":
+            alertas.append(Aviso(
+                "alerta", f"Tu foto de perfil fue rechazada: {self.foto_moderation_reason or MOTIVO_RECHAZO_POR_DEFECTO}",
+                editar, "Cambiar foto",
+            ))
+        elif self.foto_moderation_status in ESTADOS_EN_REVISION:
+            infos.append(Aviso("info", "Tu foto de perfil está en revisión: todavía no se muestra públicamente."))
+
+        aprobadas = self.contar_portafolio("approved")
+        en_revision = self.contar_portafolio(*ESTADOS_EN_REVISION)
+        rechazadas = self.contar_portafolio("rejected")
+
+        if aprobadas < MINIMO_FOTOS_PORTAFOLIO_PARA_PUBLICAR:
+            faltan = MINIMO_FOTOS_PORTAFOLIO_PARA_PUBLICAR - aprobadas
+            alertas.append(Aviso(
+                "alerta",
+                f"Te faltan {_plural(faltan, 'foto aprobada', 'fotos aprobadas')} en tu portafolio para publicar servicios nuevos.",
+                portafolio, "Ir al portafolio",
+            ))
+        if en_revision:
+            infos.append(Aviso(
+                "info", f"Tenés {_plural(en_revision, 'foto', 'fotos')} en revisión.", portafolio, "Ver portafolio"
+            ))
+        if rechazadas:
+            alertas.append(Aviso(
+                "alerta",
+                f"{_plural(rechazadas, 'foto rechazada', 'fotos rechazadas')}; revisá el motivo en tu portafolio.",
+                portafolio, "Ver portafolio",
+            ))
+        if self.portafolio.count() >= MAXIMO_FOTOS_PORTAFOLIO:
+            mensaje = f"Llegaste al máximo de {MAXIMO_FOTOS_PORTAFOLIO} fotos en tu portafolio"
+            mensaje += ", eliminá las rechazadas para liberar espacio." if rechazadas else "."
+            infos.append(Aviso("info", mensaje, portafolio, "Administrar portafolio"))
+
+        if self.servicios.count() == 0 and self.puede_publicar_servicio:
+            infos.append(Aviso(
+                "info", "Ya podés publicar tu primer servicio.", "dashboard.nuevo_servicio", "Publicar servicio"
+            ))
+
+        return alertas + infos
 
     def publicar_servicio(self, datos):
         """
@@ -632,3 +771,55 @@ class Service(db.Model):
 
     def __repr__(self):
         return f"<Service {self.titulo}>"
+
+
+class ResumenAdministracion:
+    """
+    Cifras del panel de administración. Cada atributo se calcula con una
+    consulta COUNT al crear el objeto (no se cargan filas en memoria).
+    """
+
+    def __init__(self):
+        self.fotos_perfil_en_revision = CollaboratorProfile.query.filter(
+            CollaboratorProfile.foto_filename.isnot(None),
+            CollaboratorProfile.foto_moderation_status.in_(ESTADOS_EN_REVISION),
+        ).count()
+        self.fotos_portafolio_en_revision = PortfolioImage.query.filter(
+            PortfolioImage.moderation_status.in_(ESTADOS_EN_REVISION)
+        ).count()
+
+        self.cuentas = User.query.count()
+        self.cuentas_suspendidas = User.query.filter_by(account_status="banned").count()
+        self.clientes = User.query.filter_by(tipo_usuario="cliente", es_admin=False).count()
+        self.colaboradores = User.query.filter_by(tipo_usuario="colaborador").count()
+        self.administradores = User.query.filter_by(es_admin=True).count()
+
+        # Mismo criterio que /explorar: servicio activo de una cuenta no suspendida.
+        self.servicios_visibles = (
+            Service.query.filter_by(activo=True)
+            .join(CollaboratorProfile)
+            .join(User)
+            .filter(User.account_status == "active")
+            .count()
+        )
+
+    @property
+    def fotos_en_revision(self):
+        return self.fotos_perfil_en_revision + self.fotos_portafolio_en_revision
+
+    def avisos(self):
+        """Lo que el administrador tiene pendiente (vacío si no hay nada)."""
+        avisos = []
+        if self.fotos_en_revision:
+            avisos.append(Aviso(
+                "alerta",
+                f"{_plural(self.fotos_en_revision, 'foto espera', 'fotos esperan')} una decisión.",
+                "admin.fotos", "Revisar fotos",
+            ))
+        if self.cuentas_suspendidas:
+            avisos.append(Aviso(
+                "info",
+                f"{_plural(self.cuentas_suspendidas, 'cuenta suspendida', 'cuentas suspendidas')}.",
+                "admin.cuentas", "Ver cuentas suspendidas", {"estado": "banned"},
+            ))
+        return avisos

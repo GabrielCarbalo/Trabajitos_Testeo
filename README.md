@@ -165,6 +165,11 @@ La aplicación queda disponible en `http://127.0.0.1:5000`.
 
 Presionar `Ctrl + C` en la terminal donde está corriendo.
 
+### 8. Publicar en producción (Railway)
+
+Ver [DEPLOY_RAILWAY.md](DEPLOY_RAILWAY.md): PostgreSQL, Gunicorn, volumen
+para las fotos, variables de entorno y comprobaciones después del deploy.
+
 ## Errores comunes
 
 - **`ModuleNotFoundError: No module named 'flask'`**: el entorno virtual no
@@ -233,11 +238,16 @@ Los colaboradores suben su foto de perfil y fotos de trabajos realizados
 - **Portafolio**: hasta 8 fotos, con descripción opcional. Hace falta un
   mínimo de **2 fotos aprobadas** para poder publicar un servicio nuevo
   (no afecta a servicios ya publicados). `/dashboard/portafolio`.
-- Los archivos se guardan en `app/static/uploads/profile/` y
-  `app/static/uploads/portfolio/` con un nombre generado (UUID), nunca con
-  el nombre original. La base de datos solo guarda esa referencia, no el
-  archivo — ver `app/services/image_storage.py`, pensado para poder
-  reemplazarse por un backend en la nube más adelante sin tocar las rutas.
+- Los archivos se guardan en `<UPLOAD_FOLDER>/profile/` y
+  `<UPLOAD_FOLDER>/portfolio/` (por defecto `UPLOAD_FOLDER` es
+  `app/static/uploads/`; en producción, un volumen persistente) con un
+  nombre generado (UUID), nunca con el nombre original. La base de datos
+  solo guarda esa referencia, no el archivo — ver
+  `app/services/image_storage.py`, pensado para poder reemplazarse por un
+  backend en la nube más adelante sin tocar las rutas.
+- Se publican en `/uploads/<profile|portfolio>/<archivo>`: solo las fotos
+  aprobadas de cuentas activas son públicas; las demás las ven únicamente
+  su dueño y los administradores.
 - Cada foto pasa por un estado de moderación (`pending` / `approved` /
   `flagged` / `rejected`, ver `app/models.py`). Hoy, sin ningún detector
   externo activo, una foto se marca `flagged` únicamente si coincide

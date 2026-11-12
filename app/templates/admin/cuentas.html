@@ -38,7 +38,7 @@
         <div class="panel__servicios">
             {% for usuario in pagina.items %}
             <article class="servicio-fila">
-                <div>
+                <div class="servicio-fila__texto">
                     <p class="servicio-fila__titulo">
                         {% if usuario.es_colaborador and usuario.perfil_colaborador %}
                         <a href="{{ url_for('main.perfil_colaborador', colaborador_id=usuario.perfil_colaborador.id) }}">{{ usuario.nombre }}</a>
@@ -48,7 +48,7 @@
                     </p>
                     <p class="servicio-fila__meta">
                         {{ usuario.correo }} ·
-                        {% if usuario.es_admin %}Administrador{% elif usuario.es_colaborador %}Colaborador{% else %}Cliente{% endif %}
+                        {{ usuario.rol_legible }}
                     </p>
                 </div>
 

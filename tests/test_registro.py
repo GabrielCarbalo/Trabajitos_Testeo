@@ -12,10 +12,11 @@ Dos grupos:
 """
 
 import unittest
+from urllib.parse import urlsplit
 
 from app import db
 from app.models import CollaboratorProfile, RegistroInvalido, User
-from tests.base import BaseApp
+from tests.base import HASH_PASSWORD, BaseApp
 
 DATOS_VALIDOS = {
     "nombre": "  Lucía Pérez ",
@@ -148,6 +149,48 @@ class PruebasFlujoMVC(BaseApp):
         self.cliente_anonimo().post("/registro", data=self.FORMULARIO)
         respuesta = self.cliente_anonimo().post("/login", data={"correo": "lucia@prueba.test", "password": "clave-segura-1"})
         self.assertEqual(respuesta.status_code, 302)
+
+
+class PruebasDestinoYEnlaces(BaseApp):
+    """A dónde lleva el login según el rol, y los enlaces "Ofrecer un servicio"."""
+
+    def setUp(self):
+        super().setUp()
+        db.session.add_all([
+            User(nombre="Colab", correo="colab@prueba.test", tipo_usuario="colaborador", password_hash=HASH_PASSWORD),
+            User(nombre="Cli", correo="cli@prueba.test", tipo_usuario="cliente", password_hash=HASH_PASSWORD),
+        ])
+        db.session.commit()
+
+    def _login(self, correo, url="/login"):
+        return self.cliente_anonimo().post(url, data={"correo": correo, "password": "password123"})
+
+    def test_colaborador_entra_a_su_panel(self):
+        respuesta = self._login("colab@prueba.test")
+        self.assertEqual(respuesta.status_code, 302)
+        self.assertIn("/dashboard/", respuesta.headers["Location"])
+
+    def test_cliente_entra_al_inicio(self):
+        respuesta = self._login("cli@prueba.test")
+        self.assertEqual(respuesta.status_code, 302)
+        self.assertEqual(urlsplit(respuesta.headers["Location"]).path, "/")
+
+    def test_next_seguro_tiene_prioridad_sobre_el_rol(self):
+        respuesta = self._login("colab@prueba.test", "/login?next=/explorar")
+        self.assertTrue(respuesta.headers["Location"].endswith("/explorar"))
+
+    def test_enlace_de_visitante_lleva_al_registro_de_colaborador(self):
+        html = self.cliente_anonimo().get("/").get_data(as_text=True)
+        self.assertIn('href="/registro?tipo=colaborador"', html)
+        self.assertNotIn('href="/dashboard/"', html)
+
+    def test_tipo_en_la_url_preselecciona_colaborador(self):
+        html = self.cliente_anonimo().get("/registro?tipo=colaborador").get_data(as_text=True)
+        self.assertRegex(html, r'value="colaborador"\s+required\s+checked')
+
+    def test_tipo_invalido_en_la_url_se_ignora(self):
+        html = self.cliente_anonimo().get("/registro?tipo=admin").get_data(as_text=True)
+        self.assertNotIn("checked", html)
 
 
 if __name__ == "__main__":

@@ -4,6 +4,9 @@ configuración de pruebas con SQLite EN MEMORIA (no toca instance/trabajitos.db)
 y una clase que crea una app + base de datos limpias para cada prueba.
 """
 
+import os
+import shutil
+import tempfile
 import unittest
 
 from flask import g
@@ -28,6 +31,11 @@ class BaseApp(unittest.TestCase):
 
     def setUp(self):
         self.app = create_app(ConfigPruebas)
+        # Las fotos subidas van a una carpeta temporal propia de cada prueba,
+        # nunca a app/static/uploads/. addCleanup la borra aunque la prueba falle.
+        self.carpeta_uploads = tempfile.mkdtemp(prefix="trabajitos-uploads-")
+        self.addCleanup(self._borrar_carpeta_uploads, self.carpeta_uploads)
+        self.app.config["UPLOAD_FOLDER"] = self.carpeta_uploads
         self.contexto = self.app.app_context()
         self.contexto.push()
         db.create_all()
@@ -36,6 +44,15 @@ class BaseApp(unittest.TestCase):
         db.session.remove()
         db.drop_all()
         self.contexto.pop()
+
+    @staticmethod
+    def _borrar_carpeta_uploads(carpeta):
+        # Defensa extra: solo se borra una carpeta creada por mkdtemp dentro
+        # del directorio temporal del sistema, nunca una carpeta del proyecto.
+        temporal = os.path.realpath(tempfile.gettempdir())
+        ruta = os.path.realpath(carpeta)
+        if os.path.basename(ruta).startswith("trabajitos-uploads-") and os.path.dirname(ruta) == temporal:
+            shutil.rmtree(ruta, ignore_errors=True)
 
     def cliente_anonimo(self):
         """

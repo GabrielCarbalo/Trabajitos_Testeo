@@ -14,17 +14,25 @@ from flask_login import current_user, login_required
 from sqlalchemy import or_
 
 from app import db
-from app.models import ACCOUNT_STATUSES, AccionNoPermitida, CollaboratorProfile, PortfolioImage, User
+from app.models import (
+    ACCOUNT_STATUSES,
+    ESTADOS_EN_REVISION,
+    AccionNoPermitida,
+    CollaboratorProfile,
+    PortfolioImage,
+    ResumenAdministracion,
+    User,
+)
 from app.routes.main import _escapar_like
 from app.services.image_storage import storage
 from app.services.uploads import SUBCARPETA_PERFIL
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
 
-# Estados que todavía esperan una decisión humana. "rejected" ya es una
-# decisión tomada, así que no vuelve a aparecer en la cola.
-ESTADOS_EN_REVISION = ("pending", "flagged")
 CUENTAS_POR_PAGINA = 25
+# Tope del número de página: un ?page= gigante generaba un OFFSET que no
+# entra en un entero de la base (error 500). Pasado el tope la lista sale vacía.
+PAGINA_MAXIMA = 100_000
 
 
 @admin_bp.before_request
@@ -56,13 +64,9 @@ def _fotos_de_portafolio_en_revision():
 
 @admin_bp.route("/")
 def index():
-    """Resumen: cuántas fotos esperan revisión y cuántas cuentas están suspendidas."""
-    return render_template(
-        "admin/panel.html",
-        cantidad_fotos=len(_fotos_de_perfil_en_revision()) + len(_fotos_de_portafolio_en_revision()),
-        cantidad_baneadas=User.query.filter_by(account_status="banned").count(),
-        cantidad_cuentas=User.query.count(),
-    )
+    """Resumen: fotos esperando revisión, cuentas por tipo y estado, y avisos pendientes."""
+    resumen = ResumenAdministracion()
+    return render_template("admin/panel.html", resumen=resumen, avisos=resumen.avisos())
 
 
 # ----------------------------------------------------------------------
@@ -149,9 +153,11 @@ def cuentas():
     if estado:
         consulta = consulta.filter(User.account_status == estado)
 
-    # paginate() toma el número de página de ?page= en la querystring.
+    # ?page= no numérico o menor a 1 -> página 1 (igual que paginate con error_out=False).
+    numero_pagina = request.args.get("page", 1, type=int)
+    numero_pagina = min(numero_pagina, PAGINA_MAXIMA) if numero_pagina and numero_pagina > 0 else 1
     pagina = consulta.order_by(User.fecha_creacion.desc(), User.id.desc()).paginate(
-        per_page=CUENTAS_POR_PAGINA, error_out=False
+        page=numero_pagina, per_page=CUENTAS_POR_PAGINA, error_out=False
     )
     return render_template("admin/cuentas.html", pagina=pagina, q=q, estado=estado)
 
