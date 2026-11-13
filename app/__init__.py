@@ -12,14 +12,14 @@ de módulo) porque permite:
 import os
 from datetime import datetime, timezone
 
-from flask import Flask, flash, render_template
+from flask import Flask, abort, flash, render_template, request
 from flask_login import LoginManager, current_user, logout_user
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
 from flask_wtf import CSRFProtect
 from werkzeug.routing import IntegerConverter
 
-from app.config import CLAVE_DE_DESARROLLO, Config
+from app.config import CLAVE_DE_DESARROLLO, ProductionConfig, config_del_entorno
 
 
 class IdConverter(IntegerConverter):
@@ -44,7 +44,42 @@ login_manager.login_message = "Iniciá sesión para continuar."
 login_manager.login_message_category = "info"
 
 
-def create_app(config_class=Config):
+def _verificar_configuracion_de_produccion():
+    """
+    En producción, arrancar sin SECRET_KEY propia permitiría falsificar
+    sesiones (la clave de desarrollo está en el código), y arrancar sin
+    DATABASE_URL guardaría todo en una SQLite que se borra en cada deploy.
+    Lo mismo con UPLOAD_FOLDER: sin una ruta absoluta (el volumen), las fotos
+    quedarían dentro del contenedor y desaparecerían en el próximo deploy.
+    Mejor que el deploy falle con un mensaje claro.
+    """
+    faltantes = []
+    clave = os.environ.get("SECRET_KEY", "").strip()
+    if not clave or clave == CLAVE_DE_DESARROLLO:
+        faltantes.append("SECRET_KEY")
+    if not os.environ.get("DATABASE_URL"):
+        faltantes.append("DATABASE_URL")
+    carpeta = os.environ.get("UPLOAD_FOLDER") or ""
+    # Railway define RAILWAY_VOLUME_MOUNT_PATH cuando el servicio tiene un
+    # volumen: si existe, las fotos tienen que quedar DENTRO de él.
+    volumen = os.environ.get("RAILWAY_VOLUME_MOUNT_PATH")
+    fuera_del_volumen = bool(volumen) and os.path.commonpath(
+        [os.path.abspath(volumen), os.path.abspath(carpeta or os.sep)]
+    ) != os.path.abspath(volumen)
+    if not os.path.isabs(carpeta) or fuera_del_volumen:
+        faltantes.append("UPLOAD_FOLDER (ruta absoluta dentro del volumen, ej. /data/uploads)")
+    if faltantes:
+        raise RuntimeError(
+            "APP_ENV=production requiere definir estas variables de entorno: " + ", ".join(faltantes)
+        )
+
+
+def create_app(config_class=None):
+    if config_class is None:
+        config_class = config_del_entorno()
+    if issubclass(config_class, ProductionConfig):
+        _verificar_configuracion_de_produccion()
+
     app = Flask(__name__, instance_relative_config=True)
     app.config.from_object(config_class)
 
@@ -81,14 +116,37 @@ def create_app(config_class=Config):
     migrate.init_app(app, db)
 
     # Registro de blueprints: cada archivo de app/routes/ agrupa las rutas
-    # de una parte de la aplicación (público, autenticación, panel privado).
+    # de una parte de la aplicación (público, autenticación, panel privado,
+    # administración, cuenta personal).
     from app.routes.main import main_bp
     from app.routes.auth import auth_bp
     from app.routes.dashboard import dashboard_bp
+    from app.routes.admin import admin_bp
+    from app.routes.cuenta import cuenta_bp
 
     app.register_blueprint(main_bp)
     app.register_blueprint(auth_bp)
     app.register_blueprint(dashboard_bp)
+    app.register_blueprint(admin_bp)
+    app.register_blueprint(cuenta_bp)
+
+    # Comandos de terminal propios ("flask crear-admin"), ver app/cli.py.
+    from app.cli import crear_admin
+
+    app.cli.add_command(crear_admin)
+
+    @app.before_request
+    def rechazar_caracter_nulo():
+        """
+        PostgreSQL no acepta el carácter NUL (\\x00) en columnas de texto ni
+        en parámetros de consulta: un "\\x00" escrito a mano en un formulario
+        o en la URL terminaba en un error 500. Ningún dato legítimo lo usa,
+        así que se responde 400 antes de llegar a la base de datos.
+        """
+        for valores in (request.args, request.form):
+            for valor in valores.values():
+                if "\x00" in valor:
+                    abort(400)
 
     @app.before_request
     def cerrar_sesion_de_cuentas_baneadas():
@@ -144,13 +202,24 @@ def create_app(config_class=Config):
 
         return {"etiqueta_moderacion": etiqueta_moderacion}
 
+    @app.errorhandler(400)
+    def solicitud_invalida(_error):
+        return render_template(
+            "error.html",
+            codigo=400,
+            titulo="No pudimos procesar el pedido",
+            mensaje="Algún dato enviado no es válido. Revisalo e intentá de nuevo.",
+        ), 400
+
     @app.errorhandler(403)
     def prohibido(_error):
         return render_template(
             "error.html",
             codigo=403,
             titulo="No tenés acceso a esta página",
-            mensaje="Esta sección es solo para cuentas de colaborador.",
+            # Genérico a propósito: el 403 lo usan tanto el panel del
+            # colaborador como el de administración.
+            mensaje="Tu cuenta no tiene permiso para ver esta sección.",
         ), 403
 
     @app.errorhandler(404)
@@ -170,5 +239,17 @@ def create_app(config_class=Config):
             titulo="El archivo es demasiado grande",
             mensaje="Elegí una imagen de hasta 5 MB e intentá de nuevo.",
         ), 413
+
+    @app.errorhandler(500)
+    def error_interno(_error):
+        # Flask ya registró la traza completa en el log del servidor; a la
+        # persona solo se le muestra un mensaje genérico, nunca el detalle.
+        db.session.rollback()
+        return render_template(
+            "error.html",
+            codigo=500,
+            titulo="Algo salió mal",
+            mensaje="Tuvimos un problema inesperado. Intentá de nuevo en unos minutos.",
+        ), 500
 
     return app

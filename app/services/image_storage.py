@@ -7,7 +7,9 @@ salga a producción, alcance con escribir una CloudImageStorage (por ejemplo
 para Cloudinary o S3) que implemente los mismos tres métodos, sin tocar las
 rutas que ya usan `storage.guardar(...)`, `storage.eliminar(...)` y
 `storage.url(...)`. Por ahora solo existe LocalImageStorage, que guarda los
-archivos dentro de app/static/uploads/.
+archivos dentro de UPLOAD_FOLDER (por defecto app/static/uploads/; en
+producción, un volumen persistente) y los publica en /uploads/... mediante la
+ruta main.archivo_subido — así la URL funciona esté donde esté la carpeta.
 
 Los archivos NUNCA se guardan con su nombre original: cada uno recibe un
 nombre generado con uuid4, tanto por seguridad (evita path traversal y
@@ -39,10 +41,19 @@ class ImageStorage(ABC):
 
 
 class LocalImageStorage(ImageStorage):
-    """Guarda las imágenes en el disco local, dentro de app/static/uploads/<subcarpeta>/."""
+    """Guarda las imágenes en el disco local, dentro de <UPLOAD_FOLDER>/<subcarpeta>/."""
+
+    def raiz(self) -> str:
+        # UPLOAD_FOLDER lo definen las pruebas (carpeta temporal) y producción
+        # (volumen persistente); si no está configurado se usa app/static/uploads/.
+        # abspath: guardar y servir (send_from_directory) tienen que resolver
+        # la misma carpeta aunque UPLOAD_FOLDER se escriba como ruta relativa.
+        return os.path.abspath(
+            current_app.config.get("UPLOAD_FOLDER") or os.path.join(current_app.static_folder, "uploads")
+        )
 
     def _carpeta(self, subcarpeta: str) -> str:
-        carpeta = os.path.join(current_app.static_folder, "uploads", subcarpeta)
+        carpeta = os.path.join(self.raiz(), subcarpeta)
         os.makedirs(carpeta, exist_ok=True)
         return carpeta
 
@@ -56,12 +67,12 @@ class LocalImageStorage(ImageStorage):
     def eliminar(self, filename: str, subcarpeta: str) -> None:
         if not filename:
             return
-        ruta = os.path.join(current_app.static_folder, "uploads", subcarpeta, filename)
+        ruta = os.path.join(self.raiz(), subcarpeta, filename)
         if os.path.isfile(ruta):
             os.remove(ruta)
 
     def url(self, filename: str, subcarpeta: str) -> str:
-        return url_for("static", filename=f"uploads/{subcarpeta}/{filename}")
+        return url_for("main.archivo_subido", subcarpeta=subcarpeta, filename=filename)
 
 
 # Instancia única que usan las rutas. El día que se agregue CloudImageStorage,

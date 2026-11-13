@@ -79,7 +79,7 @@
         {% if current_user.is_authenticated and current_user.es_colaborador %}
         <a href="{{ url_for('dashboard.index') }}" class="boton boton--claro">Ir a mi panel</a>
         {% elif not current_user.is_authenticated %}
-        <a href="{{ url_for('auth.registro') }}" class="boton boton--claro">Ofrecer mis servicios</a>
+        <a href="{{ url_for('auth.registro', tipo='colaborador') }}" class="boton boton--claro">Ofrecer mis servicios</a>
         {% endif %}
     </div>
 </section>

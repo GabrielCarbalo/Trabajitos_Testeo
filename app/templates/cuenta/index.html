@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block title %}Mi cuenta — TRABAJITOS{% endblock %}
+
+{% block content %}
+<section class="seccion auth">
+    <div class="contenedor auth__contenedor">
+        <div class="auth__card auth__card--ancha">
+            <h1 class="auth__titulo">{{ "Mi cuenta" if current_user.es_colaborador else "Mi perfil" }}</h1>
+
+            <dl class="cuenta__datos">
+                <dt>Nombre</dt>
+                <dd>{{ current_user.nombre }}</dd>
+                <dt>Correo</dt>
+                <dd>{{ current_user.correo }}</dd>
+                <dt>Tipo de cuenta</dt>
+                <dd>{{ current_user.rol_legible }}</dd>
+                <dt>Miembro desde</dt>
+                <dd>{{ current_user.fecha_creacion.strftime("%d/%m/%Y") }}</dd>
+            </dl>
+
+            {% if current_user.es_colaborador %}
+            <p><a href="{{ url_for('dashboard.editar_perfil') }}">Editar mi perfil público</a></p>
+            {% endif %}
+
+            <h2 class="panel__subtitulo">Cambiar nombre</h2>
+            <form method="post" action="{{ url_for('cuenta.actualizar_nombre') }}" novalidate class="auth__form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="campo">
+                    <label for="nombre">Nombre completo</label>
+                    <input type="text" id="nombre" name="nombre" value="{{ nombre }}" required maxlength="120" autocomplete="name">
+                </div>
+                <button type="submit" class="boton boton--acento auth__submit">Guardar nombre</button>
+            </form>
+
+            <h2 class="panel__subtitulo">Cambiar contraseña</h2>
+            <form method="post" action="{{ url_for('cuenta.cambiar_password') }}" novalidate class="auth__form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="campo">
+                    <label for="password_actual">Contraseña actual</label>
+                    <input type="password" id="password_actual" name="password_actual" required autocomplete="current-password">
+                </div>
+                <div class="campo">
+                    <label for="password_nueva">Contraseña nueva</label>
+                    <input type="password" id="password_nueva" name="password_nueva" required minlength="8" autocomplete="new-password">
+                    <p class="campo__ayuda">Mínimo 8 caracteres.</p>
+                </div>
+                <div class="campo">
+                    <label for="password_confirmacion">Repetí la contraseña nueva</label>
+                    <input type="password" id="password_confirmacion" name="password_confirmacion" required minlength="8" autocomplete="new-password">
+                </div>
+                <button type="submit" class="boton boton--acento auth__submit">Cambiar contraseña</button>
+            </form>
+        </div>
+    </div>
+</section>
+{% endblock %}

@@ -17,7 +17,7 @@ from flask_login import current_user, login_required, login_user, logout_user
 from sqlalchemy.exc import IntegrityError
 
 from app import db
-from app.models import RegistroInvalido, User
+from app.models import TIPOS_USUARIO, RegistroInvalido, User
 
 auth_bp = Blueprint("auth", __name__)
 
@@ -37,6 +37,19 @@ def _es_redireccion_segura(destino):
     return not partes.scheme and not partes.netloc and partes.path.startswith("/")
 
 
+def _destino_segun_rol(usuario):
+    """
+    A dónde llevar a una persona cuando no pidió una página concreta: el
+    administrador a su panel (se revisa primero: un admin es de tipo
+    "cliente"), el colaborador al suyo y el resto al inicio.
+    """
+    if usuario.es_admin:
+        return url_for("admin.index")
+    if usuario.es_colaborador:
+        return url_for("dashboard.index")
+    return url_for("main.home")
+
+
 CAMPOS_REGISTRO = ("nombre", "correo", "password", "tipo_usuario")
 
 
@@ -51,10 +64,16 @@ def _vista_registro(datos, estado=200):
 def registro():
     # Si ya hay una sesión activa, no tiene sentido mostrar el registro de nuevo.
     if current_user.is_authenticated:
-        return redirect(url_for("main.home"))
+        return redirect(_destino_segun_rol(current_user))
 
     if request.method == "GET":
-        return _vista_registro({campo: "" for campo in CAMPOS_REGISTRO})
+        datos = {campo: "" for campo in CAMPOS_REGISTRO}
+        # Los enlaces "Ofrecer un servicio" llegan con ?tipo=colaborador para
+        # dejar esa opción elegida; cualquier otro valor se ignora.
+        tipo = request.args.get("tipo")
+        if tipo in TIPOS_USUARIO:
+            datos["tipo_usuario"] = tipo
+        return _vista_registro(datos)
 
     # POST: el Controller solo LEE lo que llegó; validar y crear es del Model.
     datos = {campo: request.form.get(campo, "") for campo in CAMPOS_REGISTRO}
@@ -76,13 +95,13 @@ def registro():
 
     login_user(usuario)
     flash(f"¡Bienvenido/a a TRABAJITOS, {usuario.nombre}!", "success")
-    return redirect(url_for("dashboard.index" if usuario.es_colaborador else "main.home"))
+    return redirect(_destino_segun_rol(usuario))
 
 
 @auth_bp.route("/login", methods=["GET", "POST"])
 def login():
     if current_user.is_authenticated:
-        return redirect(url_for("main.home"))
+        return redirect(_destino_segun_rol(current_user))
 
     correo = ""
 
@@ -119,7 +138,7 @@ def login():
         siguiente = request.args.get("next")
         if _es_redireccion_segura(siguiente):
             return redirect(siguiente)
-        return redirect(url_for("main.home"))
+        return redirect(_destino_segun_rol(usuario))
 
     return render_template("auth/login.html", correo=correo)
 

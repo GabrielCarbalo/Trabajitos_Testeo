@@ -1,0 +1,10 @@
+{# Lista de avisos (objetos Aviso de app/models.py). Parámetro: texto_sin_avisos. #}
+{% if avisos %}
+<ul class="avisos">
+    {% for a in avisos %}
+    <li class="aviso aviso--{{ a.nivel }}">{{ a.mensaje }}{% if a.destino %} <a href="{{ url_for(a.destino, **a.parametros) }}">{{ a.texto_destino }}</a>{% endif %}</li>
+    {% endfor %}
+</ul>
+{% else %}
+<p class="aviso-vacio">{{ texto_sin_avisos }}</p>
+{% endif %}

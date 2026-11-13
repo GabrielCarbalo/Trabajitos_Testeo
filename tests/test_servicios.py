@@ -234,7 +234,7 @@ class PruebasFlujoMVC(BaseConApp):
         self.assertEqual(self.ana.telefono_whatsapp, "+503 7123 4567")
 
     def test_foto_de_perfil_no_queda_huerfana_si_el_formulario_falla(self):
-        carpeta = os.path.join(self.app.static_folder, "uploads", "profile")
+        carpeta = os.path.join(self.carpeta_uploads, "profile")
         os.makedirs(carpeta, exist_ok=True)
         antes = set(os.listdir(carpeta))
         png = b"\x89PNG\r\n\x1a\n" + b"0" * 32
@@ -275,7 +275,7 @@ class PruebasFlujoMVC(BaseConApp):
         self.assertIn("Ofrecer mis servicios", html_anonimo)
 
     def test_cambiar_foto_de_perfil_borra_la_anterior(self):
-        carpeta = os.path.join(self.app.static_folder, "uploads", "profile")
+        carpeta = os.path.join(self.carpeta_uploads, "profile")
         cliente = self.entrar_como("ana@prueba.test")
 
         def subir(relleno):
@@ -293,7 +293,6 @@ class PruebasFlujoMVC(BaseConApp):
         segunda = subir(b"2")
         self.assertFalse(os.path.exists(os.path.join(carpeta, primera)))
         self.assertTrue(os.path.exists(os.path.join(carpeta, segunda)))
-        os.remove(os.path.join(carpeta, segunda))
 
     def test_permisos_cliente_y_anonimo(self):
         self.assertEqual(self.entrar_como("cliente@prueba.test").get("/dashboard/servicios/nuevo").status_code, 403)

@@ -19,26 +19,40 @@
                     <p class="seccion__subtitulo">Este es tu panel de colaborador.</p>
                 </div>
             </div>
-            <a href="{{ url_for('dashboard.nuevo_servicio') }}" class="boton boton--acento">Publicar servicio</a>
         </div>
+
+        <div class="panel__acciones">
+            <a href="{{ url_for('dashboard.editar_perfil') }}" class="boton boton--secundario">Editar perfil</a>
+            <a href="{{ url_for('dashboard.portafolio') }}" class="boton boton--secundario">Ver portafolio</a>
+            <a href="{{ url_for('dashboard.portafolio') }}#agregar" class="boton boton--secundario">Agregar trabajo</a>
+            <a href="{{ url_for('dashboard.nuevo_servicio') }}" class="boton boton--acento">Publicar servicio</a>
+            <a href="{{ url_for('main.perfil_colaborador', colaborador_id=perfil.id) }}" class="boton boton--secundario">Ver mi perfil público</a>
+        </div>
+
+        <h2 class="panel__subtitulo">Avisos</h2>
+        {% set texto_sin_avisos = "No tenés avisos pendientes." %}
+        {% include "partials/avisos.html" %}
 
         <div class="panel__perfil">
             <div>
-                <h2 class="panel__subtitulo">Tu perfil</h2>
+                <h2 class="panel__subtitulo panel__subtitulo--sin-margen">Tu perfil</h2>
                 {% if perfil.descripcion %}
                 <p class="panel__perfil-descripcion">{{ perfil.descripcion }}</p>
                 <p class="panel__perfil-dato">
                     <strong>WhatsApp:</strong> {{ perfil.telefono_whatsapp or "Sin definir" }}
                 </p>
-                {% if foto_url_actual and perfil.foto_moderation_status != "approved" %}
-                {% set texto, clase = etiqueta_moderacion(perfil.foto_moderation_status) %}
-                <p class="badge-moderacion badge-moderacion--{{ clase }}">Foto: {{ texto }}</p>
-                {% endif %}
                 {% else %}
                 <p class="aviso-vacio">
                     Todavía no completaste tu perfil. Los clientes lo ven antes de contactarte.
                 </p>
                 {% endif %}
+                <ul class="checklist">
+                    <li>Descripción: {{ "Listo" if perfil.descripcion else "Falta" }}</li>
+                    <li>WhatsApp: {{ "Listo" if perfil.telefono_whatsapp else "Falta" }}</li>
+                    <li>Foto de perfil:
+                        {% if perfil.foto_filename %}{{ etiqueta_moderacion(perfil.foto_moderation_status)[0] }}{% else %}Falta{% endif %}
+                    </li>
+                </ul>
             </div>
             <a href="{{ url_for('dashboard.editar_perfil') }}" class="boton boton--secundario">
                 {% if perfil.descripcion %}Editar perfil{% else %}Completar perfil{% endif %}
@@ -47,7 +61,7 @@
 
         <div class="panel__perfil">
             <div>
-                <h2 class="panel__subtitulo">Trabajos realizados</h2>
+                <h2 class="panel__subtitulo panel__subtitulo--sin-margen">Trabajos realizados</h2>
                 <p class="panel__perfil-dato">
                     {{ cantidad_portafolio_aprobado }} foto{{ "s" if cantidad_portafolio_aprobado != 1 else "" }} aprobada{{ "s" if cantidad_portafolio_aprobado != 1 else "" }}
                     (mínimo {{ minimo_portafolio }} para poder publicar servicios nuevos)
@@ -68,13 +82,18 @@
         <div class="panel__servicios">
             {% for servicio in servicios %}
             <article class="servicio-fila">
-                <div>
+                <div class="servicio-fila__texto">
                     <p class="servicio-fila__titulo">{{ servicio.titulo }}</p>
                     <p class="servicio-fila__meta">
                         {{ servicio.categoria.nombre }} ·
                         ${{ "%.2f"|format(servicio.precio) }} / {{ servicio.modalidad_legible }} ·
                         {{ servicio.disponibilidad }}
                     </p>
+                    {% if servicio.activo %}
+                    <span class="badge-moderacion badge-moderacion--aprobada">Activo</span>
+                    {% else %}
+                    <span class="badge-moderacion badge-moderacion--rechazada">Inactivo (no se muestra públicamente)</span>
+                    {% endif %}
                 </div>
                 <a href="{{ url_for('dashboard.editar_servicio', servicio_id=servicio.id) }}" class="boton boton--secundario">Editar</a>
             </article>

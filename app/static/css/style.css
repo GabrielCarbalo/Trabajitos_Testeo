@@ -315,6 +315,9 @@ input:focus-visible {
     background: none;
     border: none;
     padding: 0.5rem;
+    /* Área táctil mínima recomendada (44px). */
+    min-width: 44px;
+    min-height: 44px;
 }
 
 .header__menu-icon,
@@ -686,6 +689,9 @@ input:focus-visible {
     font: inherit;
     color: inherit;
     cursor: pointer;
+    /* Área táctil más cómoda sin cambiar cómo se ve el texto. */
+    min-height: 2rem;
+    padding: 0.4rem 0;
 }
 
 .footer__logout-boton:hover {
@@ -958,6 +964,7 @@ input:focus-visible {
 .panel__perfil-descripcion {
     color: var(--ink-black);
     max-width: 60ch;
+    overflow-wrap: anywhere;
 }
 
 .panel__perfil-dato {
@@ -985,6 +992,14 @@ input:focus-visible {
     box-shadow: var(--sombra-sm);
 }
 
+/* Texto de una fila: ocupa el espacio libre y parte las palabras largas (un
+   título o un correo sin espacios no debe ensanchar la página). */
+.servicio-fila__texto {
+    flex: 1 1 16rem;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
 .servicio-fila__titulo {
     font-weight: 700;
     color: var(--ink-black);
@@ -994,6 +1009,61 @@ input:focus-visible {
     margin-top: 0.2rem;
     font-size: 0.85rem;
     color: var(--evergreen);
+}
+
+/* Acciones rápidas del panel del colaborador. */
+.panel__acciones {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--espacio-sm);
+    margin-top: var(--espacio-md);
+}
+
+/* Avisos derivados del estado de la cuenta (ver partials/avisos.html). */
+.avisos {
+    list-style: none;
+    margin: var(--espacio-sm) 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--espacio-xs);
+}
+
+.aviso {
+    padding: 0.85rem 1.1rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.9rem;
+    font-weight: 600;
+    border: 2px solid transparent;
+}
+
+.aviso a {
+    color: inherit;
+    text-decoration: underline;
+}
+
+.aviso--alerta {
+    background-color: #FBE9E7;
+    color: #8A2C1F;
+    border-color: #C6503F;
+}
+
+.aviso--info {
+    background-color: #E5EFFA;
+    color: #103A5E;
+    border-color: var(--bright-marine);
+}
+
+.checklist {
+    list-style: none;
+    margin: var(--espacio-xs) 0 0;
+    padding: 0;
+    font-size: 0.9rem;
+    color: var(--evergreen);
+}
+
+.checklist li + li {
+    margin-top: 0.2rem;
 }
 
 /* --------------------------------------------------------------------------
@@ -1088,6 +1158,7 @@ input:focus-visible {
     margin-top: var(--espacio-sm);
     color: var(--evergreen);
     max-width: 60ch;
+    overflow-wrap: anywhere;
 }
 
 .perfil-colaborador__info .boton {
@@ -1358,7 +1429,8 @@ input:focus-visible {
     font-size: 0.8rem;
     font-weight: 600;
     cursor: pointer;
-    padding: 0;
+    padding: 0.4rem 0;
+    min-height: 2rem;
     text-decoration: underline;
 }
 
@@ -1443,6 +1515,28 @@ input:focus-visible {
 }
 
 /* --------------------------------------------------------------------------
+   16b. PANEL DE ADMINISTRACIÓN
+   Reutiliza .panel__*, .servicio-fila, .portafolio__grid y .badge-moderacion;
+   acá solo va lo que esas piezas no cubren.
+   -------------------------------------------------------------------------- */
+.admin__acciones {
+    display: flex;
+    align-items: center;
+    gap: var(--espacio-sm);
+    flex-wrap: wrap;
+}
+
+.admin__paginacion {
+    margin-top: var(--espacio-md);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: var(--espacio-md);
+    font-size: 0.9rem;
+    color: var(--evergreen);
+}
+
+/* --------------------------------------------------------------------------
    17. PATRÓN CULTURAL
    Patrón geométrico original inspirado en referencias mesoamericanas
    Maya/Nahua (ver app/static/img/patron-mesoamericano.svg) — no reproduce
@@ -1494,9 +1588,13 @@ input:focus-visible {
     }
 }
 
-@media (max-width: 720px) {
+/* El menú tiene más enlaces que antes (Mi panel, Administración, Mi cuenta...),
+   así que se colapsa a hamburguesa ya en tablets, no solo en celulares. */
+@media (max-width: 1024px) {
     .header__menu-toggle {
-        display: block;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
     }
 
     .header__nav {
@@ -1508,14 +1606,14 @@ input:focus-visible {
         flex-direction: column;
         align-items: flex-start;
         gap: var(--espacio-sm);
-        padding: var(--espacio-md);
+        padding: 0 var(--espacio-md);
         max-height: 0;
         overflow: hidden;
         transition: max-height var(--transicion-suave), padding var(--transicion-suave);
     }
 
     .header__nav.header__nav--abierto {
-        max-height: 400px;
+        max-height: 480px;
         padding: var(--espacio-md);
     }
 
@@ -1523,7 +1621,9 @@ input:focus-visible {
         width: 100%;
         text-align: center;
     }
+}
 
+@media (max-width: 720px) {
     .hero {
         padding: var(--espacio-xl) 0;
     }
@@ -1549,7 +1649,16 @@ input:focus-visible {
         grid-template-columns: 1fr;
     }
 
+    .portafolio__form-descripcion {
+        flex-wrap: wrap;
+    }
+
+    .portafolio__form-descripcion input {
+        flex-basis: 100%;
+    }
+
     .panel__cabecera .boton,
+    .panel__acciones .boton,
     .panel__perfil .boton,
     .servicio-fila .boton {
         width: 100%;
@@ -1561,6 +1670,7 @@ input:focus-visible {
         align-items: stretch;
     }
 
+    .filtros__busqueda,
     .filtros__campo {
         flex: 1 1 auto;
     }
@@ -1604,4 +1714,23 @@ input:focus-visible {
         transition-duration: 0.001ms !important;
         scroll-behavior: auto !important;
     }
+}
+
+/* Datos de solo lectura de la página "Mi cuenta". */
+.cuenta__datos {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 0.4rem var(--espacio-md);
+    margin: var(--espacio-md) 0;
+}
+
+.cuenta__datos dt {
+    font-weight: 700;
+    color: var(--ink-black);
+}
+
+.cuenta__datos dd {
+    margin: 0;
+    color: var(--evergreen);
+    overflow-wrap: anywhere;
 }

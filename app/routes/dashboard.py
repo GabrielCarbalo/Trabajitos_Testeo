@@ -16,6 +16,7 @@ from sqlalchemy.orm import joinedload
 
 from app import db
 from app.models import (
+    ESTADOS_EN_REVISION,
     MAXIMO_FOTOS_PORTAFOLIO,
     MINIMO_FOTOS_PORTAFOLIO_PARA_PUBLICAR,
     Category,
@@ -135,11 +136,10 @@ def index():
         cantidad_portafolio_aprobado=len(perfil.portafolio_aprobado),
         # "pending" y "flagged" todavía pueden aprobarse; "rejected" no, así
         # que se cuentan aparte en vez de mostrarlas como "en revisión".
-        cantidad_portafolio_en_revision=perfil.portafolio.filter(
-            PortfolioImage.moderation_status.in_(("pending", "flagged"))
-        ).count(),
-        cantidad_portafolio_rechazado=perfil.portafolio.filter_by(moderation_status="rejected").count(),
+        cantidad_portafolio_en_revision=perfil.contar_portafolio(*ESTADOS_EN_REVISION),
+        cantidad_portafolio_rechazado=perfil.contar_portafolio("rejected"),
         minimo_portafolio=MINIMO_FOTOS_PORTAFOLIO_PARA_PUBLICAR,
+        avisos=perfil.avisos(),
     )
 
 

@@ -11,9 +11,12 @@
 
         <nav class="footer__enlaces" aria-label="Enlaces del pie de página">
             <a href="{{ url_for('main.explorar') }}">Explorar</a>
-            {# Una cuenta de cliente no tiene panel: el link le daría un 403. #}
-            {% if not current_user.is_authenticated or current_user.es_colaborador %}
-            <a href="{{ url_for('dashboard.index') }}">Ofrecer servicios</a>
+            {# Una cuenta de cliente no tiene panel: el link le daría un 403.
+               A quien no tiene sesión se le ofrece crear una cuenta de colaborador. #}
+            {% if not current_user.is_authenticated %}
+            <a href="{{ url_for('auth.registro', tipo='colaborador') }}">Ofrecer servicios</a>
+            {% elif current_user.es_colaborador %}
+            <a href="{{ url_for('dashboard.index') }}">Mi panel</a>
             {% endif %}
             {% if current_user.is_authenticated %}
             <form action="{{ url_for('auth.logout') }}" method="post" class="footer__logout-form">

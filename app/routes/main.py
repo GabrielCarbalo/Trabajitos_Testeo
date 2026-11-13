@@ -6,12 +6,18 @@ el perfil público de un colaborador con su botón de contacto por WhatsApp.
 import math
 import re
 
-from flask import Blueprint, abort, render_template, request
-from sqlalchemy import or_
+import os
+
+from flask import Blueprint, abort, render_template, request, send_from_directory
+from flask_login import current_user
+from sqlalchemy import or_, text
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import joinedload
 
 from app import db
-from app.models import MODALIDADES_SERVICIO, Category, CollaboratorProfile, Service, User
+from app.models import MODALIDADES_SERVICIO, Category, CollaboratorProfile, PortfolioImage, Service, User
+from app.services.image_storage import storage
+from app.services.uploads import SUBCARPETA_PERFIL, SUBCARPETA_PORTAFOLIO
 
 main_bp = Blueprint("main", __name__)
 
@@ -39,6 +45,60 @@ def _escapar_like(texto):
     sean raros cuando alguien busca un texto que casualmente tiene "%" o "_".
     """
     return texto.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+
+@main_bp.route("/health")
+def health():
+    """
+    Healthcheck para la plataforma de despliegue: sin sesión, sin datos de
+    configuración en la respuesta. Hace un SELECT 1 (consulta mínima) para
+    confirmar que la base responde; si no, 503.
+    """
+    try:
+        db.session.execute(text("SELECT 1"))
+    except SQLAlchemyError:
+        db.session.rollback()
+        return {"status": "error"}, 503
+    return {"status": "ok"}
+
+
+def _foto_visible_para_quien_pide(subcarpeta, filename):
+    """
+    Aplica a los archivos la misma regla que a las páginas: una foto es
+    pública solo si está aprobada y su cuenta no está suspendida. Las demás
+    (en revisión, rechazadas, de cuentas suspendidas) solo las ve su dueño o
+    un administrador. Un archivo sin registro en la base no se sirve.
+    """
+    if subcarpeta == SUBCARPETA_PERFIL:
+        perfil = CollaboratorProfile.query.filter_by(foto_filename=filename).first()
+        publica = perfil is not None and perfil.foto_visible
+    else:
+        foto = PortfolioImage.query.filter_by(filename=filename).first()
+        perfil = foto.perfil if foto is not None else None
+        publica = foto is not None and foto.moderation_status == "approved"
+    if perfil is None:
+        return False
+    if publica and not perfil.usuario.esta_baneado:
+        return True
+    return current_user.is_authenticated and (current_user.es_admin or current_user.id == perfil.user_id)
+
+
+@main_bp.route("/uploads/<subcarpeta>/<filename>")
+def archivo_subido(subcarpeta, filename):
+    """
+    Sirve las fotos subidas desde UPLOAD_FOLDER (ver image_storage.py).
+    Solo las dos subcarpetas conocidas; send_from_directory rechaza
+    cualquier nombre que intente salir de la carpeta (path traversal).
+    """
+    if subcarpeta not in (SUBCARPETA_PERFIL, SUBCARPETA_PORTAFOLIO):
+        abort(404)
+    if not _foto_visible_para_quien_pide(subcarpeta, filename):
+        abort(404)
+    respuesta = send_from_directory(os.path.join(storage.raiz(), subcarpeta), filename)
+    # Evita que el navegador "adivine" otro tipo de contenido que el
+    # declarado por la extensión (jpg/png/webp, ya validados al subir).
+    respuesta.headers["X-Content-Type-Options"] = "nosniff"
+    return respuesta
 
 
 @main_bp.route("/")

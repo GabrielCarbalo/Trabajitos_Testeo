@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block title %}Administración — TRABAJITOS{% endblock %}
+
+{% block content %}
+<section class="seccion panel">
+    <div class="contenedor">
+        <div class="panel__cabecera">
+            <div>
+                <h1 class="seccion__titulo">Administración</h1>
+                <p class="seccion__subtitulo">Moderá fotografías y cuentas de la plataforma.</p>
+            </div>
+        </div>
+
+        <p class="panel__perfil-dato">
+            {{ resumen.clientes }} cliente{{ "s" if resumen.clientes != 1 else "" }} ·
+            {{ resumen.colaboradores }} colaborador{{ "es" if resumen.colaboradores != 1 else "" }} ·
+            {{ resumen.administradores }} administrador{{ "es" if resumen.administradores != 1 else "" }} ·
+            {{ resumen.servicios_visibles }} servicio{{ "s" if resumen.servicios_visibles != 1 else "" }} visible{{ "s" if resumen.servicios_visibles != 1 else "" }}
+        </p>
+
+        <h2 class="panel__subtitulo">Avisos</h2>
+        {% set texto_sin_avisos = "No hay nada pendiente." %}
+        {% include "partials/avisos.html" %}
+
+        <div class="panel__perfil">
+            <div>
+                <h2 class="panel__subtitulo panel__subtitulo--sin-margen">Fotos en revisión</h2>
+                <p class="panel__perfil-dato">
+                    {% if resumen.fotos_en_revision %}
+                    {{ resumen.fotos_en_revision }} foto{{ "s" if resumen.fotos_en_revision != 1 else "" }} esperando una decisión.
+                    {% else %}
+                    No hay fotos pendientes de revisión.
+                    {% endif %}
+                </p>
+            </div>
+            <a href="{{ url_for('admin.fotos') }}" class="boton boton--acento">Revisar fotos</a>
+        </div>
+
+        <div class="panel__perfil">
+            <div>
+                <h2 class="panel__subtitulo panel__subtitulo--sin-margen">Cuentas</h2>
+                <p class="panel__perfil-dato">
+                    {{ resumen.cuentas }} cuenta{{ "s" if resumen.cuentas != 1 else "" }} en total ·
+                    {{ resumen.cuentas_suspendidas }} suspendida{{ "s" if resumen.cuentas_suspendidas != 1 else "" }}
+                </p>
+            </div>
+            <a href="{{ url_for('admin.cuentas') }}" class="boton boton--secundario">Administrar cuentas</a>
+        </div>
+    </div>
+</section>
+{% endblock %}

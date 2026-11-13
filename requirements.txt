@@ -5,3 +5,10 @@ Flask-Migrate==4.0.7
 Flask-WTF==1.2.1
 python-dotenv==1.0.1
 Werkzeug==3.0.3
+# Versiones con las que se probó el proyecto (antes llegaban sin fijar como
+# dependencias de Flask-SQLAlchemy / Flask-Migrate).
+SQLAlchemy==2.1.0
+alembic==1.20.0
+# Producción: driver de PostgreSQL y servidor WSGI.
+psycopg[binary]==3.3.9
+gunicorn==27.0.0
